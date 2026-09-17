@@ -6,15 +6,26 @@
 //! alike. Errors are strings: a JNI failure here is a bug in the glue, and
 //! the caller's business is to say so and carry on.
 
+use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use jni::objects::{GlobalRef, JByteArray, JObject, JString, JValue};
+use jni::objects::{GlobalRef, JByteArray, JClass, JObject, JString, JValue};
 use jni::{JNIEnv, JavaVM};
 
 static VM: OnceLock<JavaVM> = OnceLock::new();
 static CONTEXT: OnceLock<GlobalRef> = OnceLock::new();
+/// The glue's classes, found once from a Java thread. **A thread attached
+/// from native code looks classes up through the system class loader, which
+/// has never heard of this app's**: `FindClass("org/squic/sigil/Vault")`
+/// from the window's thread threw ClassNotFoundException on the first
+/// launch. `Native.init` runs on the main thread with the app's loader, so
+/// the classes are found there and kept as global references.
+static CLASSES: OnceLock<HashMap<&'static str, GlobalRef>> = OnceLock::new();
 
 pub const PACKAGE: &str = "org/squic/sigil";
+
+/// Every class Rust calls into. Add here before calling a new one.
+const GLUE: &[&str] = &["Vault", "Notifier", "Files", "Endpoint", "CallService"];
 
 /// Called from `JNI_OnLoad`, which runs when either the activity or the
 /// wake service loads the library. Once per process.
@@ -22,11 +33,33 @@ pub fn install(vm: JavaVM) {
     let _ = VM.set(vm);
 }
 
-/// The application context, from `Native.init`. Once per process.
+/// The application context and the glue's classes, from `Native.init`,
+/// which runs on a Java thread. Once per process.
 pub fn set_context(env: &mut JNIEnv, context: JObject) -> Result<(), String> {
     let global = env.new_global_ref(context).map_err(|e| e.to_string())?;
     let _ = CONTEXT.set(global);
+    let mut classes = HashMap::new();
+    for name in GLUE {
+        let class = env
+            .find_class(format!("{PACKAGE}/{name}"))
+            .map_err(|e| format!("{name}: {e}"))?;
+        let global = env.new_global_ref(class).map_err(|e| e.to_string())?;
+        classes.insert(*name, global);
+    }
+    let _ = CLASSES.set(classes);
     Ok(())
+}
+
+/// One of the glue's classes, by its short name, as a class usable from any
+/// attached thread.
+pub fn class<'a>(name: &str) -> jni::errors::Result<JClass<'a>> {
+    let classes = CLASSES.get().ok_or(jni::errors::Error::NullPtr("no classes: Native.init was not called"))?;
+    let global = classes
+        .get(name)
+        .ok_or(jni::errors::Error::NullPtr("a class Rust calls is not in GLUE"))?;
+    // SAFETY: the global reference lives for the process; the class handle
+    // made from it is only borrowed for one call and never deleted.
+    Ok(unsafe { JClass::from_raw(global.as_obj().as_raw()) })
 }
 
 pub fn has_context() -> bool {
@@ -63,7 +96,7 @@ pub fn call_static_with_context(
     args: &[JValue],
 ) -> Result<(), String> {
     with_env(|env, context| {
-        let class = env.find_class(format!("{PACKAGE}/{class}"))?;
+        let class = self::class(class)?;
         let mut all: Vec<JValue> = Vec::with_capacity(args.len() + 1);
         all.push(JValue::Object(context));
         all.extend(args.iter().cloned());
@@ -83,7 +116,7 @@ pub fn string_from(env: &mut JNIEnv, s: &JString) -> String {
 /// `Vault.seal` / `Vault.open`: bytes in, bytes out, or null.
 pub fn call_vault(name: &str, input: &[u8]) -> Result<Option<Vec<u8>>, String> {
     with_env(|env, _| {
-        let class = env.find_class(format!("{PACKAGE}/Vault"))?;
+        let class = class("Vault")?;
         let bytes = env.byte_array_from_slice(input)?;
         let out = env.call_static_method(class, name, "([B)[B", &[JValue::Object(&bytes)])?;
         let out = out.l()?;

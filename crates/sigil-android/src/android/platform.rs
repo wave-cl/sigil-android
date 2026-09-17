@@ -29,7 +29,7 @@ pub fn post_message(
     sound: bool,
 ) -> Result<(), String> {
     with_env(|env, context| {
-        let class = env.find_class(format!("{}/Notifier", bridge::PACKAGE))?;
+        let class = bridge::class("Notifier")?;
         let identity = jstring(env, identity)?;
         let exchange = jstring(env, exchange)?;
         let channel_s = channel.map(hex).unwrap_or_default();
@@ -73,7 +73,7 @@ pub fn post_ring(
 ) -> Result<(), String> {
     let channel = hex(channel);
     with_env(|env, context| {
-        let class = env.find_class(format!("{}/Notifier", bridge::PACKAGE))?;
+        let class = bridge::class("Notifier")?;
         let identity = jstring(env, identity)?;
         let exchange = jstring(env, exchange)?;
         let channel = jstring(env, &channel)?;
@@ -97,7 +97,7 @@ pub fn post_ring(
 /// Whether the platform lets sigil post notifications right now.
 pub fn notifications_enabled() -> bool {
     with_env(|env, context| {
-        let class = env.find_class(format!("{}/Notifier", bridge::PACKAGE))?;
+        let class = bridge::class("Notifier")?;
         env.call_static_method(
             class,
             "enabled",
@@ -257,7 +257,7 @@ impl Chooser for AndroidChooser {
             // SAFETY: the pointer is the activity object android-activity
             // handed the glue, valid for the life of the activity.
             let activity = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
-            let class = env.find_class(format!("{}/Files", bridge::PACKAGE))?;
+            let class = bridge::class("Files")?;
             env.call_static_method(
                 class,
                 "pick",
@@ -278,7 +278,7 @@ impl Chooser for AndroidChooser {
             let ctx = ndk_context::android_context();
             // SAFETY: as above.
             let activity = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
-            let class = env.find_class(format!("{}/Files", bridge::PACKAGE))?;
+            let class = bridge::class("Files")?;
             let name = jstring(env, name)?;
             let out = env.call_static_method(
                 class,
@@ -303,7 +303,7 @@ impl Chooser for AndroidChooser {
 /// The endpoint Kotlin holds, through `Endpoint.get`.
 pub fn stored_endpoint() -> Option<String> {
     with_env(|env, context| {
-        let class = env.find_class(format!("{}/Endpoint", bridge::PACKAGE))?;
+        let class = bridge::class("Endpoint")?;
         let out = env.call_static_method(
             class,
             "get",
@@ -325,7 +325,7 @@ pub fn stored_endpoint() -> Option<String> {
 
 pub fn store_endpoint(url: Option<&str>) {
     let result = with_env(|env, context| {
-        let class = env.find_class(format!("{}/Endpoint", bridge::PACKAGE))?;
+        let class = bridge::class("Endpoint")?;
         let null = jni::objects::JObject::null();
         let s = match url {
             Some(u) => Some(jstring(env, u)?),
