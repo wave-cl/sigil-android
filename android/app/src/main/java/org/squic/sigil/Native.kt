@@ -37,4 +37,10 @@ object Native {
 
     /** A `sigil://` link arrived while the app was running. Offered, never acted on silently. */
     external fun link(url: String)
+
+    /**
+     * What the system draws over the surface, in pixels: status bar, gesture
+     * bar or keyboard, cutouts. From [Insets], whenever it changes.
+     */
+    external fun insets(top: Int, bottom: Int, left: Int, right: Int)
 }

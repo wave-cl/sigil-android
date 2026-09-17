@@ -27,9 +27,17 @@ impl eframe::App for Sigil {
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
-        // No title bar of the system's to draw behind: the surface is all
-        // sigil's, from the top.
-        self.shell.set_top_inset(0.0);
+        // What the system draws over the surface, as `Insets.kt` last said,
+        // in points: the shell keeps everything clear of it, and lifts the
+        // composer above the keyboard.
+        let ppp = ui.ctx().pixels_per_point().max(0.1);
+        let [top, bottom, left, right] = super::platform::insets_px();
+        self.shell.set_insets(sigil::Insets {
+            top: top as f32 / ppp,
+            bottom: bottom as f32 / ppp,
+            left: left as f32 / ppp,
+            right: right as f32 / ppp,
+        });
         self.shell.ui(ui);
     }
 }
@@ -148,6 +156,14 @@ pub fn android_main(app: android_activity::AndroidApp) {
         "sigil",
         options,
         Box::new(move |cc| {
+            // A phone, said before the theme is installed, which is what
+            // gives it the touch scale; and a way for the insets to ask for
+            // a repaint when the keyboard comes and goes.
+            sigil::Form::install(&cc.egui_ctx, sigil::Form::Phone);
+            super::platform::repaint_with({
+                let ctx = cc.egui_ctx.clone();
+                move || ctx.request_repaint()
+            });
             sigil::theme::install(&cc.egui_ctx, sigil::theme::light(), sigil::theme::dark());
             sigil_ui::install_loaders(&cc.egui_ctx);
             Ok(Box::new(Sigil { shell }))

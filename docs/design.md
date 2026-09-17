@@ -71,3 +71,35 @@ Not proven, and said so:
 - the pairing claim end to end (it is compiled; the test that registers a
   phone from a desktop session and claims it is the next one to write);
 - a wake window's cost on a cellular radio, as opposed to on loopback.
+
+## Layout on a phone
+
+The desktop is left as it is. One value tells sigil what it is running in:
+`sigil::Form { Desktop, Phone }`, set once by the host and read from the egui
+context; the desktop never sets it. Layout stays width-driven -- a narrow
+desktop window collapses to one pane the same way a phone does, from
+`sigil::layout` -- and `Form` decides only what a phone *is* that a narrow
+window is not:
+
+- the system's bars and keyboard lie over the surface, so the shell keeps
+  everything clear of `Insets` the host supplies (`Insets.kt` listens for
+  the platform's answer and hands it to Rust in pixels; the keyboard is a
+  bottom inset, which is what lifts the composer above it);
+- the title strip is an app bar, a finger tall, under the status bar, with
+  the view's title at the left and the app's corner control at the right;
+- the rail is wider, and every icon button's target is a finger's
+  (`Form::button_size`), with the theme's touch scale: taller controls, more
+  slop around a target, a floating scroll bar, body text a size up;
+- dialogs and fields are bounded by the width there is, which also fixes a
+  narrow desktop window.
+
+Touch is not a form. Whether a finger has been seen is egui's own
+`has_touch_screen()`, and it turns on what hover cannot do: a tap on a
+message reveals its actions and a tap elsewhere puts them away; a press
+held still opens a menu of them where the finger is; the picture viewer
+pans by drag and zooms by pinch. A desktop with a touchscreen gets all of
+it.
+
+Known limits: the soft keyboard delivers key events only (no IME
+composition, so CJK and swipe typing do not commit -- a NativeActivity
+limit winit does not bridge); the QR is drawn, not scanned.

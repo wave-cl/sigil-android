@@ -28,7 +28,7 @@ async fn server_in(dir: &Path) -> Endpoint {
     std::fs::write(&key_path, hex::encode(server_sk.to_bytes())).unwrap();
     let config_toml = format!(
         "listen = \"127.0.0.1:0\"\nkey_file = {:?}\nstate_file = {:?}\nadmins = []\n\
-         welcome_channel = \"\"\nwake_loopback = true\n",
+         welcome_channel = \"\"\nlimits = {{ posts = [0, 0], signals = [0, 0], joins = [0, 0], creates = [0, 0], uploads = [0, 0] }}\nwake_loopback = true\n",
         key_path.to_string_lossy(),
         dir.join("sqex.state").to_string_lossy(),
     );

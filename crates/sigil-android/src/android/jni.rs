@@ -224,3 +224,17 @@ pub extern "system" fn Java_org_squic_sigil_Native_link(
         Err(why) => tracing::warn!("refused a link: {why}"),
     }
 }
+
+/// `Native.insets(top, bottom, left, right)`: what the system draws over the
+/// surface, in pixels, whenever it changes.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_org_squic_sigil_Native_insets(
+    _env: JNIEnv,
+    _class: JClass,
+    top: jint,
+    bottom: jint,
+    left: jint,
+    right: jint,
+) {
+    platform::set_insets([top, bottom, left, right]);
+}

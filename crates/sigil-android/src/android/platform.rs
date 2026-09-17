@@ -348,3 +348,28 @@ pub fn store_endpoint(url: Option<&str>) {
     }
     let _ = call_static_with_context;
 }
+
+/// What the system draws over the surface, in pixels, as `Insets.kt` last
+/// reported it: top, bottom, left, right. Read every pass by the window and
+/// turned into points there.
+static INSETS: Mutex<[i32; 4]> = Mutex::new([0; 4]);
+/// How to ask the window to look again when the insets change -- the
+/// keyboard rising is an event nothing else would repaint for.
+static REPAINT: std::sync::OnceLock<Box<dyn Fn() + Send + Sync>> = std::sync::OnceLock::new();
+
+pub fn set_insets(px: [i32; 4]) {
+    if let Ok(mut i) = INSETS.lock() {
+        *i = px;
+    }
+    if let Some(repaint) = REPAINT.get() {
+        repaint();
+    }
+}
+
+pub fn insets_px() -> [i32; 4] {
+    INSETS.lock().map(|i| *i).unwrap_or([0; 4])
+}
+
+pub fn repaint_with(f: impl Fn() + Send + Sync + 'static) {
+    let _ = REPAINT.set(Box::new(f));
+}
