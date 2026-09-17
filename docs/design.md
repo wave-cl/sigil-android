@@ -66,8 +66,11 @@ distributor standing in for the push service:
 
 Not proven, and said so:
 
-- anything on an actual phone: the JNI, the Kotlin, the Keystore, the
-  soft keyboard, audio through AAudio, the FCM bridge;
+- on an actual phone, audio through AAudio and the FCM bridge. (The JNI,
+  the Kotlin, the Keystore, the insets and the soft keyboard were seen
+  working on a OnePlus NE2213 on Android 16: the app connects to
+  trunk.exchange, the rail starts under the status bar, the composer rises
+  above the keyboard, a long press opens a message's menu.)
 - the pairing claim end to end (it is compiled; the test that registers a
   phone from a desktop session and claims it is the next one to write);
 - a wake window's cost on a cellular radio, as opposed to on loopback.
@@ -99,6 +102,12 @@ message reveals its actions and a tap elsewhere puts them away; a press
 held still opens a menu of them where the finger is; the picture viewer
 pans by drag and zooms by pinch. A desktop with a touchscreen gets all of
 it.
+
+A narrow pane also folds the conversation bar: everything but Back, the
+name, the call and the identity goes behind one More button. Six controls
+beside the identity were wider than the row, and a right-to-left row that
+overflows pushes Back off the left edge and drags the transcript after it,
+over the rail. The same fold serves a desktop window pulled in.
 
 Known limits: the soft keyboard delivers key events only (no IME
 composition, so CJK and swipe typing do not commit -- a NativeActivity
