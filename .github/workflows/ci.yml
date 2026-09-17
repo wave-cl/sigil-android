@@ -67,6 +67,11 @@ jobs:
   # The phone, cross-built. ubuntu-latest carries the SDK and an NDK.
   android:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [debug, release]
+    name: android (${{ matrix.profile }})
     steps:
       - uses: actions/checkout@v4
         with:
@@ -111,8 +116,8 @@ jobs:
       - name: Gradle wrapper
         run: cd sigil-android/android && gradle wrapper --gradle-version 8.11.1
       - name: build-apk
-        run: cd sigil-android && scripts/build-apk
+        run: cd sigil-android && scripts/build-apk ${{ matrix.profile == 'release' && '--release' || '' }}
       - uses: actions/upload-artifact@v4
         with:
-          name: sigil-debug-apk
-          path: sigil-android/android/app/build/outputs/apk/debug/*.apk
+          name: sigil-${{ matrix.profile }}-apk
+          path: sigil-android/android/app/build/outputs/apk/${{ matrix.profile }}/*.apk
