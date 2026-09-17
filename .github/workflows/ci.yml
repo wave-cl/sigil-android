@@ -101,7 +101,7 @@ jobs:
         run: |
           sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$sdk" --licenses >/dev/null || true
-          "$sdk" --install "ndk;27.2.12479018" "platforms;android-37" "build-tools;35.0.0"
+          "$sdk" --install "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           cargo install cargo-ndk --locked
       - uses: Swatinem/rust-cache@v2

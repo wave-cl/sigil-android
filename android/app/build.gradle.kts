@@ -5,9 +5,7 @@ plugins {
 
 android {
     namespace = "org.squic.sigil"
-    // 37: what UnifiedPush connector 3.3 compiles against. AGP 8.7 warns
-    // that 35 is the most it knows; gradle.properties suppresses that.
-    compileSdk = 37
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "org.squic.sigil"
@@ -65,6 +63,8 @@ dependencies {
     // the bridge SIP-47 describes for a phone with nothing else, and is
     // used only when no other distributor is present. Coordinates as the
     // UnifiedPush example application's version catalog names them.
-    implementation("org.unifiedpush.android:connector:3.3.4")
+    // 3.3.2, not newer: 3.3.4's AAR metadata demands compile SDK 37, which
+    // no released platform provides (sdkmanager has no platforms;android-37).
+    implementation("org.unifiedpush.android:connector:3.3.2")
     implementation("org.unifiedpush.android:embedded-fcm-distributor:3.1.0")
 }

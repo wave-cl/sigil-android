@@ -21,7 +21,7 @@ CARGO_TARGET_DIR=../sigil/target cargo test --workspace
 
 ## The phone
 
-Needs: the Android SDK with platform 37 and build-tools 35, the NDK (r26 or
+Needs: the Android SDK with platform 35 and build-tools 35, the NDK (r26 or
 newer), `cargo-ndk`, the `aarch64-linux-android` Rust target, cmake (the
 Opus codec builds itself with it), and a JDK 17 for Gradle.
 
