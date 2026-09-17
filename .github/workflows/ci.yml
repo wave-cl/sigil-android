@@ -94,10 +94,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+      # ubuntu-latest carries the SDK at $ANDROID_HOME with command-line
+      # tools; android-actions/setup-android is not used because it installs
+      # the removed `tools` package by default and fails on it.
       - name: NDK and cargo-ndk
         run: |
-          sdkmanager --install "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
+          sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdk" --licenses >/dev/null || true
+          "$sdk" --install "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           cargo install cargo-ndk --locked
       - uses: Swatinem/rust-cache@v2
