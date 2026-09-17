@@ -88,11 +88,16 @@ window is not:
   everything clear of `Insets` the host supplies (`Insets.kt` listens for
   the platform's answer and hands it to Rust in pixels; the keyboard is a
   bottom inset, which is what lifts the composer above it);
-- the title strip is an app bar, a finger tall, under the status bar, with
-  the view's title at the left and the app's corner control at the right;
+- the title strip is an app bar, a finger tall, under the status bar. Its
+  head is the app's (`App::head_ui`): over the list, the identity's mark
+  with its presence dot and then "Sigil"; over a conversation, Back and
+  the conversation's name, with the conversation's More in the corner --
+  one bar, where the desktop's conversation bar would have been a second
+  one under it;
 - there is no rail: the screen is the app's, and the other apps (the
-  console, the phone's own settings) are a menu on the app bar's title,
-  which a phone that only chats never opens;
+  console, the phone's own settings) are a menu on the app bar's title
+  (the product's name over the home app, the app's name elsewhere), which
+  a phone that only chats never opens;
 - every icon button's target is a finger's (`Form::button_size`), with the
   theme's touch scale: taller controls, more slop around a target, a
   floating scroll bar, body text a size up;
