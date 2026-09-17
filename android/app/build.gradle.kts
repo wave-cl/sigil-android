@@ -40,6 +40,21 @@ android {
         buildConfig = true
     }
 
+    // One debug key, committed: a debug key has no security value, and a
+    // fresh one per build makes every build refuse to install over the
+    // last ("signatures do not match"). PKCS12 because it was made with
+    // OpenSSL on a machine with no Java; the passwords are the standard
+    // debug ones. A release key is a different matter and is not here.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("debug.keystore")
+            storeType = "PKCS12"
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
