@@ -34,6 +34,29 @@ scripts/build-apk            # debug APK at android/app/build/outputs/apk/debug/
 scripts/build-apk --release
 ```
 
+On a Mac with Homebrew, the whole toolchain is four installs and one
+`sdkmanager` run (which asks you to accept Google's licences):
+
+```
+brew install openjdk@17 gradle
+brew install --cask android-commandlinetools
+export JAVA_HOME=$(brew --prefix)/opt/openjdk@17
+export ANDROID_HOME=$(brew --prefix)/share/android-commandlinetools
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install \
+    "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
+export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018
+cargo install cargo-ndk
+(cd android && gradle wrapper --gradle-version 8.11.1)   # as CI does
+scripts/build-apk --release
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+```
+
+Homebrew's own Gradle is newer than the Android plugin supports, which is
+why the wrapper is generated first; `scripts/build-apk` prefers `./gradlew`
+when it exists. The first release build compiles every crate for
+`aarch64-linux-android` and takes minutes; after that only what changed.
+
 `scripts/build-apk` runs `cargo ndk` for the ABI in `gradle.properties`
 (`sigil.abi`, `arm64-v8a` by default), copies `libsigil_android.so` into
 `android/app/src/main/jniLibs/<abi>/`, and then runs Gradle. Gradle does not

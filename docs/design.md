@@ -69,7 +69,7 @@ Not proven, and said so:
 - on an actual phone, audio through AAudio and the FCM bridge. (The JNI,
   the Kotlin, the Keystore, the insets and the soft keyboard were seen
   working on a OnePlus NE2213 on Android 16: the app connects to
-  trunk.exchange, the rail starts under the status bar, the composer rises
+  trunk.exchange, the app bar starts under the status bar, the composer rises
   above the keyboard, a long press opens a message's menu.)
 - the pairing claim end to end (it is compiled; the test that registers a
   phone from a desktop session and claims it is the next one to write);
@@ -90,9 +90,12 @@ window is not:
   bottom inset, which is what lifts the composer above it);
 - the title strip is an app bar, a finger tall, under the status bar, with
   the view's title at the left and the app's corner control at the right;
-- the rail is wider, and every icon button's target is a finger's
-  (`Form::button_size`), with the theme's touch scale: taller controls, more
-  slop around a target, a floating scroll bar, body text a size up;
+- there is no rail: the screen is the app's, and the other apps (the
+  console, the phone's own settings) are a menu on the app bar's title,
+  which a phone that only chats never opens;
+- every icon button's target is a finger's (`Form::button_size`), with the
+  theme's touch scale: taller controls, more slop around a target, a
+  floating scroll bar, body text a size up;
 - dialogs and fields are bounded by the width there is, which also fixes a
   narrow desktop window.
 
@@ -104,10 +107,19 @@ pans by drag and zooms by pinch. A desktop with a touchscreen gets all of
 it.
 
 A narrow pane also folds the conversation bar: everything but Back, the
-name, the call and the identity goes behind one More button. Six controls
-beside the identity were wider than the row, and a right-to-left row that
-overflows pushes Back off the left edge and drags the transcript after it,
-over the rail. The same fold serves a desktop window pulled in.
+name and the identity goes behind one More button, the call first. Six
+controls beside the identity were wider than the row, and a right-to-left
+row that overflows pushes Back off the left edge and drags the transcript
+after it. The same fold serves a desktop window pulled in.
+
+Every row of the transcript has to fit the pane, not only look as if it
+does: egui grows a ui to whatever is drawn in it, so one row 35 points too
+wide -- a file's name beside its Save button, which a `horizontal` never
+wraps -- laid out every message after it for a pane that wide. A wrapped
+message then ran off the right edge and one's own were right-aligned to
+an edge past the screen. The phone is 360 points across (1080 pixels at
+3×); the test harnesses are sized from it, not from a Pixel's 412, which
+is the width at which every test passed while the phone overflowed.
 
 Known limits: the soft keyboard delivers key events only (no IME
 composition, so CJK and swipe typing do not commit -- a NativeActivity
