@@ -57,6 +57,17 @@ why the wrapper is generated first; `scripts/build-apk` prefers `./gradlew`
 when it exists. The first release build compiles every crate for
 `aarch64-linux-android` and takes minutes; after that only what changed.
 
+The launcher icon is the mark of a key, drawn by `scripts/launcher-icon`
+into `android/app/src/main/res/mipmap-*/ic_launcher.png` and committed: by
+default the all-ones key (thirty-two bytes of 0x01), so the icon is a
+mark like every other in the app and nobody's in particular; `scripts/launcher-icon <KEY>` draws some
+identity's instead. It also writes the adaptive icon (`mipmap-anydpi-v26/ic_launcher.xml`
+over `ic_launcher_layer.png`), whose layer is the mark at two thirds of
+a 108dp square: a launcher masks the middle two thirds, a circle on most
+phones, so the mark fills the whole of the icon's circle rather than
+sitting shrunk inside it. It is a binary (`launcher_icon`) and not a
+build step, so a build never needs the host half of the workspace.
+
 `scripts/build-apk` runs `cargo ndk` for the ABI in `gradle.properties`
 (`sigil.abi`, `arm64-v8a` by default), copies `libsigil_android.so` into
 `android/app/src/main/jniLibs/<abi>/`, and then runs Gradle. Gradle does not

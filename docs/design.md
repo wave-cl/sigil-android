@@ -142,6 +142,12 @@ bar is a size down from the desktop's, and the words the desktop shows
 beside it about a link being down or retrying are not shown on the
 phone: the dot on the mark says it, and the session reconnects itself.
 
+The search box and the composer are the whole width on a phone, a little
+taller, with their one control inside the box at the right -- the
+magnifier, the paperclip -- rather than beside it; there is no Send
+button, because the keyboard's own key sends. The launcher icon is the
+mark of the all-ones key (see building.md).
+
 Known limits: the soft keyboard delivers key events only (no IME
 composition, so CJK and swipe typing do not commit -- a NativeActivity
 limit winit does not bridge); the QR is drawn, not scanned.

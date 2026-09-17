@@ -12,6 +12,8 @@ name = "sigil_android"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+# The launcher icon: written by `launcher-icon`, a binary and not a build step.
+png = "0.17"
 sigil = { workspace = true }
 sigil-ui = { workspace = true }
 sigil-net = { workspace = true }
