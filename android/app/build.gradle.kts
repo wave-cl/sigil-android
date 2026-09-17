@@ -5,7 +5,9 @@ plugins {
 
 android {
     namespace = "org.squic.sigil"
-    compileSdk = 35
+    // 37: what UnifiedPush connector 3.3 compiles against. AGP 8.7 warns
+    // that 35 is the most it knows; gradle.properties suppresses that.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.squic.sigil"

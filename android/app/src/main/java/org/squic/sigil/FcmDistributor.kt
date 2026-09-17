@@ -13,9 +13,9 @@ import org.unifiedpush.android.embedded_fcm_distributor.Gateway
  *
  * The connector prefers a real distributor; this one is offered only when
  * nothing else is installed. What the gateway sees is what SIP-45 lets a
- * distributor see: *when*, per token. Set the gateway in `strings.xml`
- * (`wake_proxy`); with none configured there is no gateway and the
- * distributor stays out of the way.
+ * distributor see: *when*, per token. Set the gateway with the Gradle
+ * property `sigil.wakeProxy`; with none configured there is no gateway and
+ * the distributor stays out of the way.
  *
  * `vapid` is empty: SIP-45's wake carries no VAPID authorisation, and the
  * gateway must accept a bare POST. A gateway that insists on one is not
