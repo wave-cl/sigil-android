@@ -192,7 +192,7 @@ mod tests {
         );
         let second = ensure(&at, &Backwards).unwrap();
         assert_eq!(
-            second.unlocked().unwrap().me(),
+            second.account.unlocked().unwrap().me(),
             me,
             "the same key, not a new one"
         );
