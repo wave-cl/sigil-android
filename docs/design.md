@@ -126,9 +126,15 @@ an edge past the screen. The phone is 360 points across (1080 pixels at
 3×); the test harnesses are sized from it, not from a Pixel's 412, which
 is the width at which every test passed while the phone overflowed.
 
-The phone's Back button closes whatever menu is open, and with none
-open goes back the way Escape does: winit hands it to egui as
-BrowserBack, which nothing had looked at. The identity's mark in the app
+The phone's Back button closes whatever menu is open; with none open it
+steps back through the shell's history, then asks the app for a step
+(`App::back`: the chat closes an open conversation for the list), and
+failing that is Escape, which closes a viewer or a dialog. winit hands
+it to egui as BrowserBack, which nothing had looked at. In a bubble the
+time is always the furthest right, with a receipt, "edited" or where
+the message came from to its left; and on a phone a row inside a bubble
+is as tall as its line, not the finger-tall control the theme makes
+every other row, so a name sits close to its words. The identity's mark in the app
 bar is a size down from the desktop's, and the words the desktop shows
 beside it about a link being down or retrying are not shown on the
 phone: the dot on the mark says it, and the session reconnects itself.
