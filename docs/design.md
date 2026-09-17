@@ -126,6 +126,13 @@ an edge past the screen. The phone is 360 points across (1080 pixels at
 3×); the test harnesses are sized from it, not from a Pixel's 412, which
 is the width at which every test passed while the phone overflowed.
 
+The phone's Back button closes whatever menu is open, and with none
+open goes back the way Escape does: winit hands it to egui as
+BrowserBack, which nothing had looked at. The identity's mark in the app
+bar is a size down from the desktop's, and the words the desktop shows
+beside it about a link being down or retrying are not shown on the
+phone: the dot on the mark says it, and the session reconnects itself.
+
 Known limits: the soft keyboard delivers key events only (no IME
 composition, so CJK and swipe typing do not commit -- a NativeActivity
 limit winit does not bridge); the QR is drawn, not scanned.
