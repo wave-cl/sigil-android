@@ -1,0 +1,113 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      sigil_ref:
+        description: "wave-cl/sigil ref to build against"
+        default: main
+      sqex_ref:
+        description: "wave-cl/sqex ref to build against"
+        default: main
+      sqnr_ref:
+        description: "wave-cl/sqnr ref to build against"
+        default: main
+
+env:
+  SIGIL_REF: ${{ github.event.inputs.sigil_ref || 'main' }}
+  SQEX_REF: ${{ github.event.inputs.sqex_ref || 'main' }}
+  SQNR_REF: ${{ github.event.inputs.sqnr_ref || 'main' }}
+
+jobs:
+  # Everything that decides anything, tested on a desktop against a real
+  # in-process exchange. The sibling trees are what Cargo.toml's path and
+  # patch entries name; checking them out here says which trees were built.
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sigil-android
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sigil
+          ref: ${{ env.SIGIL_REF }}
+          path: sigil
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sqex
+          ref: ${{ env.SQEX_REF }}
+          path: sqex
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sqnr
+          ref: ${{ env.SQNR_REF }}
+          path: sqnr
+      - name: Build dependencies sigil links
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config libasound2-dev libpipewire-0.3-dev \
+            libgtk-3-dev libxdo-dev libpcsclite-dev libxkbcommon-dev libwayland-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sigil-android
+      - name: fmt
+        run: cd sigil-android && cargo fmt --all -- --check
+      - name: clippy
+        run: cd sigil-android && cargo clippy --workspace --all-targets -- -D warnings
+      - name: test
+        run: cd sigil-android && cargo test --workspace
+
+  # The phone, cross-built. ubuntu-latest carries the SDK and an NDK.
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sigil-android
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sigil
+          ref: ${{ env.SIGIL_REF }}
+          path: sigil
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sqex
+          ref: ${{ env.SQEX_REF }}
+          path: sqex
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sqnr
+          ref: ${{ env.SQNR_REF }}
+          path: sqnr
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          targets: aarch64-linux-android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: NDK and cargo-ndk
+        run: |
+          sdkmanager --install "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          cargo install cargo-ndk --locked
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sigil-android
+      - name: Gradle wrapper
+        run: cd sigil-android/android && gradle wrapper --gradle-version 8.11.1
+      - name: build-apk
+        run: cd sigil-android && scripts/build-apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigil-debug-apk
+          path: sigil-android/android/app/build/outputs/apk/debug/*.apk

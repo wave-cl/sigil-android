@@ -1,0 +1,44 @@
+[package]
+name = "sigil-android"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "sigil on a phone: the Android host for sigil's own crates -- an activity, the wake, notifications and the key store. Everything that decides anything is in sigil-phone."
+
+[lib]
+name = "sigil_android"
+# The library the NativeActivity loads (`android.app.lib_name`), and a plain
+# library on a desktop so the crate's own logic compiles and tests there.
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+sigil = { workspace = true }
+sigil-ui = { workspace = true }
+sigil-net = { workspace = true }
+sigil-chat = { workspace = true }
+sigil-voice = { workspace = true }
+sigil-admin = { workspace = true }
+sigil-platform = { workspace = true }
+sigil-shell = { workspace = true }
+sigil-phone = { path = "../sigil-phone" }
+sqnr = { workspace = true }
+sqnr-core = { workspace = true }
+sqex-chat = { workspace = true }
+eframe = { workspace = true }
+egui = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand_core = { version = "0.6", features = ["getrandom"] }
+dirs = "6"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = { workspace = true }
+ndk-context = { workspace = true }
+android-activity = { workspace = true }
+tracing-android = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

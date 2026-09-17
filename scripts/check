@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#
+# What CI's host job runs, here. Shares sigil's target directory when it is
+# beside this repository, which saves the first build most of an hour.
+set -euo pipefail
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo"
+if [ -d ../sigil/target ] && [ -z "${CARGO_TARGET_DIR:-}" ]; then
+    export CARGO_TARGET_DIR="$(cd ../sigil/target && pwd)"
+fi
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace

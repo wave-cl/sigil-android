@@ -1,0 +1,33 @@
+[package]
+name = "sigil-phone"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "What makes sigil a phone client (SIP-47): pairing, the wake window, and notifications composed from plaintext the phone alone opened. No JNI here -- everything tests on a desktop against a real exchange."
+
+[dependencies]
+sigil-net = { workspace = true }
+sigil-chat = { workspace = true }
+sqex-chat = { workspace = true }
+sqex-proto = { workspace = true }
+sqnr = { workspace = true }
+sqnr-core = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+# A real exchange in-process, with a loopback distributor standing in for the
+# push service: a phone client tested against a mock has tested the mock.
+sqexd = { workspace = true }
+squic = { workspace = true }
+tempfile = "3"
+toml = "0.8"
+hex = "0.4"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+# The exchange's own request counter, read from `/status`.
+serde_json = { workspace = true }
+# `SIGIL_PHONE_LOG=sqexd=debug cargo test -p sigil-phone --test window -- --nocapture`
+# lists every request a window made, by route -- the breakdown behind the
+# bound the test asserts.
+tracing-subscriber = { workspace = true }

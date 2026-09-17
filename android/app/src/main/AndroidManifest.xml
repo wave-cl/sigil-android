@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+
+    <application
+        android:name=".SigilApp"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:theme="@style/Theme.Sigil"
+        android:hasFragileUserData="true">
+
+        <!-- The window: winit's NativeActivity hosting the Rust library.
+             `android.app.lib_name` names libsigil_android.so, whose
+             android_main is eframe's entry. One instance: a second launch,
+             from a notification say, comes back to the running one. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:windowSoftInputMode="adjustResize"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true">
+            <meta-data android:name="android.app.lib_name" android:value="sigil_android" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- sigil:// links, as the desktop registers them. Offered, never
+                 acted on silently: the Rust side asks before joining. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="sigil" />
+            </intent-filter>
+        </activity>
+
+        <!-- SIP-45: the distributor delivers `wake`; this hands it to the
+             service that runs the window. -->
+        <receiver
+            android:name=".WakeReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.connector.MESSAGE" />
+                <action android:name="org.unifiedpush.android.connector.UNREGISTERED" />
+                <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT" />
+                <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- The embedded FCM distributor's receiver, used only when no other
+             distributor is installed. See docs/wake.md for what the bridge
+             sees, which is what SIP-47 says a bridge may. -->
+        <receiver
+            android:name=".FcmDistributor"
+            android:exported="false"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="org.unifiedpush.android.distributor.feature.BYTES_MESSAGE" />
+                <action android:name="org.unifiedpush.android.distributor.REGISTER" />
+                <action android:name="org.unifiedpush.android.distributor.UNREGISTER" />
+            </intent-filter>
+        </receiver>
+
+        <!-- SIP-47's wake window, as a short foreground service: the
+             platform gives it a bounded run and shows a quiet notice while
+             it runs, which is the honest shape for work done while the
+             person is not looking. -->
+        <service
+            android:name=".WakeService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- A call in progress, with the microphone open: the one thing a
+             phone must not do in silence. -->
+        <service
+            android:name=".CallService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone" />
+    </application>
+</manifest>

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# Build the Rust library for Android and assemble the APK.
+#
+#   scripts/build-apk             # debug
+#   scripts/build-apk --release
+#
+# Two steps, deliberately separate: `cargo ndk` builds libsigil_android.so
+# into the Gradle project's jniLibs, then Gradle packages it. Gradle does
+# not drive cargo, so this refuses to run Gradle without a fresh library.
+set -euo pipefail
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+profile=debug
+gradle_task=assembleDebug
+if [ "${1:-}" = "--release" ]; then
+    profile=release
+    gradle_task=assembleRelease
+fi
+
+: "${ANDROID_NDK_HOME:?set ANDROID_NDK_HOME to the NDK (see docs/building.md)}"
+command -v cargo-ndk >/dev/null || { echo "cargo-ndk is not installed: cargo install cargo-ndk"; exit 1; }
+
+abi="$(sed -n 's/^sigil\.abi=//p' "$repo/android/gradle.properties")"
+abi="${abi:-arm64-v8a}"
+out="$repo/android/app/src/main/jniLibs"
+
+# Until sqnr's Android change is tagged: point cargo at the sibling checkout.
+# sqex is already patched in Cargo.toml (SIP-52). Override with SQNR_PATH.
+sqnr="${SQNR_PATH:-$repo/../sqnr}"
+patch_args=(
+    --config "patch.\"https://github.com/wave-cl/sqnr\".sqnr.path=\"$sqnr/crates/sqnr\""
+    --config "patch.\"https://github.com/wave-cl/sqnr\".sqnr-core.path=\"$sqnr/crates/sqnr-core\""
+)
+
+echo "== cargo ndk ($abi, $profile)"
+release_flag=()
+[ "$profile" = release ] && release_flag=(--release)
+(cd "$repo" && cargo ndk -t "$abi" -o "$out" "${patch_args[@]}" build -p sigil-android "${release_flag[@]}")
+
+lib="$out/$abi/libsigil_android.so"
+[ -f "$lib" ] || { echo "no $lib was built; not running Gradle"; exit 1; }
+echo "== $lib ($(du -h "$lib" | cut -f1))"
+
+echo "== gradle $gradle_task"
+cd "$repo/android"
+if [ -x ./gradlew ]; then
+    ./gradlew --no-daemon "$gradle_task"
+else
+    gradle --no-daemon "$gradle_task"
+fi
+ls -1 app/build/outputs/apk/*/*.apk

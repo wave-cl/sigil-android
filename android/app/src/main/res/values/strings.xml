@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sigil</string>
+    <string name="channel_messages">Messages</string>
+    <string name="channel_messages_about">A message arrived while Sigil was not open</string>
+    <string name="channel_calls">Calls</string>
+    <string name="channel_calls_about">Somebody is calling</string>
+    <string name="channel_quiet">Background work</string>
+    <string name="channel_quiet_about">Sigil checking for what arrived while it slept, or carrying a call</string>
+    <string name="waking">Checking what arrived</string>
+    <string name="in_call">In a call</string>
+    <string name="answer">Answer</string>
+    <string name="decline">Decline</string>
+    <string name="hang_up">Hang up</string>
+    <!-- The UnifiedPush rewrite proxy the embedded FCM distributor uses,
+         with no trailing slash. Empty means the fallback stays out of the
+         way and a UnifiedPush distributor must be installed. -->
+    <string name="wake_proxy" translatable="false"></string>
+</resources>

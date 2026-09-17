@@ -1,0 +1,89 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sigil-phone",
+    "crates/sigil-android",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+# --- sigil ----------------------------------------------------------------
+# By path, for now. sigil pins sqex to a tag and sqex pins sqnr to a tag; this
+# workspace is meant to pin sigil the same way, and will the moment a sigil
+# tag carries what a phone needs (the platform arms, the file chooser, the
+# pairing string). Until then it compiles whatever ../sigil has checked out,
+# which is honest about the two moving together -- and `scripts/release`
+# refuses a tag that still carries a path, exactly as sigil's does.
+sigil = { path = "../sigil/crates/sigil" }
+sigil-ui = { path = "../sigil/crates/sigil-ui" }
+sigil-net = { path = "../sigil/crates/sigil-net" }
+sigil-chat = { path = "../sigil/crates/sigil-chat" }
+sigil-voice = { path = "../sigil/crates/sigil-voice" }
+sigil-admin = { path = "../sigil/crates/sigil-admin" }
+sigil-platform = { path = "../sigil/crates/sigil-platform" }
+sigil-shell = { path = "../sigil/crates/sigil-shell" }
+
+# --- the sqex stack, as sigil pins it ------------------------------------
+sqex-proto = { git = "https://github.com/wave-cl/sqex", tag = "v0.67.0" }
+sqex-chat = { git = "https://github.com/wave-cl/sqex", tag = "v0.67.0" }
+sqex-discovery = { git = "https://github.com/wave-cl/sqex", tag = "v0.67.0" }
+sqexd = { git = "https://github.com/wave-cl/sqex", tag = "v0.67.0" }
+sqnr = { git = "https://github.com/wave-cl/sqnr", tag = "v0.10.9" }
+sqnr-core = { git = "https://github.com/wave-cl/sqnr", tag = "v0.10.9" }
+squic = { git = "https://github.com/wave-cl/squic-rust", tag = "v0.27.0" }
+
+# --- gui ------------------------------------------------------------------
+# eframe with winit's Android backend. `android-native-activity` is the
+# smaller of the two: no AndroidX game-activity library on the Java side, no
+# C++ glue -- an `android_main` and a NativeActivity in the manifest.
+eframe = { version = "0.36", default-features = false, features = ["wgpu", "android-native-activity"] }
+egui = "0.36"
+
+# --- runtime --------------------------------------------------------------
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2"
+bs58 = "0.5"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# --- the phone --------------------------------------------------------------
+jni = "0.21"
+ndk-context = "0.1"
+android-activity = { version = "0.6", features = ["native-activity"] }
+tracing-android = "0.2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+# --- until the tags carry the phone's needs --------------------------------
+# Two changes upstream of sigil are needed only by an Android build: sqnr
+# links its YubiKey backend on every target but Android (PC/SC does not exist
+# there), and sqex's discovery falls back to public resolvers when a system
+# has no resolver configuration at all. Neither is in a tag yet. A host build
+# needs neither -- the sqnr change is a target cfg, the discovery change is a
+# runtime path -- so the pins above serve every test in this workspace as
+# they stand, and `scripts/build-apk` passes the patches for an Android build
+# with `cargo --config`, pointing at the sibling checkouts (../sqnr, ../sqex)
+# or whatever it was told. Nothing here is patched, so a host build is the
+# tagged stack exactly as sigil builds it.
+
+# --- co-developing against sqex ---------------------------------------------
+# SIP-52 (catch-up) spans sqex and this workspace, and the sqex side is not
+# tagged yet. Until it is, the tagged pins above are overridden by the
+# sibling checkout, exactly as docs/dependencies.md describes for a change
+# that cannot go through a tag. **Remove this block and bump the pins before
+# tagging a release**; the release workflow refuses a manifest that still
+# carries a path, so forgetting cannot ship.
+[patch."https://github.com/wave-cl/sqex"]
+sqex-proto = { path = "../sqex/crates/sqex-proto" }
+sqex-discovery = { path = "../sqex/crates/sqex-discovery" }
+sqex-voice = { path = "../sqex/crates/sqex-voice" }
+sqex-chat = { path = "../sqex/crates/sqex-chat" }
+sqexd = { path = "../sqex/crates/sqexd" }
