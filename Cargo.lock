@@ -122,9 +122,9 @@ checksum = "fc7eb209b1518d6bb87b283c20095f5228ecda460da70b44f0802523dea6da04"
 
 [[package]]
 name = "android_log-sys"
-version = "0.2.0"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85965b6739a430150bdd138e2374a98af0c3ee0d030b3bb7fc3bddff58d0102e"
+checksum = "84521a3cf562bc62942e294181d9eef17eb38ceb8c68677bc49f144e4c3d4f8d"
 
 [[package]]
 name = "android_system_properties"
@@ -2412,7 +2412,7 @@ dependencies = [
  "log",
  "presser",
  "thiserror 2.0.20",
- "windows 0.61.3",
+ "windows 0.62.2",
 ]
 
 [[package]]
@@ -3924,7 +3924,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 2.0.2",
+ "proc-macro-crate 3.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -5915,6 +5915,7 @@ name = "sigil-android"
 version = "0.1.0"
 dependencies = [
  "android-activity",
+ "android_log-sys",
  "dirs",
  "eframe",
  "egui",
@@ -5938,7 +5939,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
- "tracing-android",
  "tracing-subscriber",
 ]
 
@@ -6353,7 +6353,7 @@ dependencies = [
 
 [[package]]
 name = "sqex-chat"
-version = "0.69.0"
+version = "0.72.0"
 dependencies = [
  "bs58",
  "chacha20poly1305",
@@ -6381,7 +6381,7 @@ dependencies = [
 
 [[package]]
 name = "sqex-discovery"
-version = "0.69.0"
+version = "0.72.0"
 dependencies = [
  "bs58",
  "dirs",
@@ -6394,7 +6394,7 @@ dependencies = [
 
 [[package]]
 name = "sqex-proto"
-version = "0.69.0"
+version = "0.72.0"
 dependencies = [
  "bs58",
  "bytes",
@@ -6416,7 +6416,7 @@ dependencies = [
 
 [[package]]
 name = "sqex-voice"
-version = "0.69.0"
+version = "0.72.0"
 dependencies = [
  "bytes",
  "clap",
@@ -6438,7 +6438,7 @@ dependencies = [
 
 [[package]]
 name = "sqexd"
-version = "0.69.0"
+version = "0.72.0"
 dependencies = [
  "bs58",
  "bytes",
@@ -7114,17 +7114,6 @@ dependencies = [
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
-]
-
-[[package]]
-name = "tracing-android"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12612be8f868a09c0ceae7113ff26afe79d81a24473a393cb9120ece162e86c0"
-dependencies = [
- "android_log-sys",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]

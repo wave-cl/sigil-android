@@ -51,7 +51,7 @@ pub fn point_home(files_dir: &std::path::Path) {
 
 pub fn install_logging() {
     let _ = tracing_subscriber::registry()
-        .with(tracing_android::layer("sigil").expect("logcat layer"))
+        .with(super::logcat::Logcat::new("sigil"))
         .with(tracing_subscriber::EnvFilter::new(
             "sigil=info,sigil_android=info,sigil_phone=info,sigil_net=info,sigil_chat=info",
         ))

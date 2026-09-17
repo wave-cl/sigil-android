@@ -38,7 +38,7 @@ dirs = "6"
 jni = { workspace = true }
 ndk-context = { workspace = true }
 android-activity = { workspace = true }
-tracing-android = { workspace = true }
+android_log-sys = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

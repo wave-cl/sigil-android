@@ -11,4 +11,5 @@
 pub mod bridge;
 pub mod entry;
 pub mod jni;
+pub mod logcat;
 pub mod platform;
