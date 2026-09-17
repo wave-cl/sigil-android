@@ -23,6 +23,10 @@ command -v cargo-ndk >/dev/null || { echo "cargo-ndk is not installed: cargo ins
 
 abi="$(sed -n 's/^sigil\.abi=//p' "$repo/android/gradle.properties")"
 abi="${abi:-arm64-v8a}"
+# The platform level the library links against: the app's minSdk. AAudio,
+# which cpal plays through, exists from 26; cargo-ndk's default of 21 has
+# no libaaudio to link and fails at the very end of the build.
+platform=26
 out="$repo/android/app/src/main/jniLibs"
 
 # Until sqnr's Android change is tagged: point cargo at the sibling checkout.
@@ -36,7 +40,7 @@ patch_args=(
 echo "== cargo ndk ($abi, $profile)"
 release_flag=()
 [ "$profile" = release ] && release_flag=(--release)
-(cd "$repo" && cargo ndk -t "$abi" -o "$out" "${patch_args[@]}" build -p sigil-android "${release_flag[@]}")
+(cd "$repo" && cargo ndk -t "$abi" -P "$platform" -o "$out" "${patch_args[@]}" build -p sigil-android "${release_flag[@]}")
 
 lib="$out/$abi/libsigil_android.so"
 [ -f "$lib" ] || { echo "no $lib was built; not running Gradle"; exit 1; }
