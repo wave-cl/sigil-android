@@ -52,14 +52,34 @@ impl Host {
     ///
     /// `home` is what `HOME` is set to -- the app's files directory on
     /// Android -- and the identity lives under it where sqnr expects one.
+    ///
+    /// `remember`: whether the roster -- the identity and the exchanges
+    /// added to it -- is written to `accounts.json` as it changes. The phone
+    /// passes `true`; a test passes `false`, since the file is the real one.
     pub fn build(
         home: &Path,
         vault: &dyn Vault,
         notify: Box<dyn Notify>,
         capabilities: Vec<Capability>,
         report: Shared,
+        remember: bool,
     ) -> Result<Host, String> {
-        let account = identity::ensure(&Where::under(home), vault)?;
+        let at = Where::under(home);
+        let opened = identity::ensure(&at, vault)?;
+        // The remembered roster, with this identity in it and opened: what
+        // was added to it last time -- an exchange, chiefly -- comes back.
+        let mut accounts = if remember {
+            sigil::Accounts::load()
+        } else {
+            sigil::Accounts::of(Vec::new())
+        };
+        let i = accounts.use_path(at.identity.clone());
+        if !accounts.unlock(i, &opened.passphrase) {
+            return Err(format!(
+                "{} did not open in the roster with the passphrase the key store holds",
+                at.identity.display()
+            ));
+        }
         let settings_at = Settings::path_under(&data_dir());
         let settings = Settings::load(&settings_at);
         let mut capabilities = capabilities;
@@ -84,7 +104,7 @@ impl Host {
         ];
         let shell = Shell::new(apps, None)
             .with_notify(notify)
-            .with_account(account);
+            .with_roster(accounts, remember);
         Ok(Host { shell, report })
     }
 }
@@ -105,9 +125,30 @@ mod tests {
             Box::new(sigil::Silent),
             Vec::new(),
             Shared::default(),
+            false,
         )
         .unwrap();
         assert!(host.shell.accounts().active().is_unlocked());
         assert!(Where::under(dir.path()).identity.exists());
+    }
+
+    /// The roster the phone builds is the remembered one with the identity
+    /// in it: an exchange added to it is still there after a rebuild from
+    /// the same files, which is what surviving a relaunch means.
+    #[test]
+    fn an_exchange_added_to_the_roster_is_there_after_a_rebuild() {
+        let dir = tempfile::tempdir().unwrap();
+        let at = Where::under(dir.path());
+        let opened = identity::ensure(&at, &Unsealed).unwrap();
+        let mut accounts = sigil::Accounts::of(Vec::new());
+        let i = accounts.use_path(at.identity.clone());
+        assert!(accounts.unlock(i, &opened.passphrase));
+        assert!(accounts.add_exchange(i, "trunk.exchange"));
+        // What the shell would write is what the identity's row now says;
+        // the file itself is the real one and is not touched by a test.
+        assert_eq!(
+            accounts.held(i).unwrap().exchanges(),
+            vec!["trunk.exchange".to_string()]
+        );
     }
 }

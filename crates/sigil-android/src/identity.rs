@@ -64,12 +64,19 @@ impl Where {
     }
 }
 
+/// The identity, opened, and the passphrase that opened it -- for putting
+/// the same identity into a roster the shell remembers.
+pub struct Opened {
+    pub account: Account,
+    pub passphrase: String,
+}
+
 /// The phone's identity, made on first run and opened on every run.
 ///
 /// **Never overwrites.** An identity file with no sealed passphrase beside
 /// it is refused rather than replaced: the file is somebody's key, and a
 /// missing passphrase is a question, not a licence.
-pub fn ensure(at: &Where, vault: &dyn Vault) -> Result<Account, String> {
+pub fn ensure(at: &Where, vault: &dyn Vault) -> Result<Opened, String> {
     let have_identity = at.identity.exists();
     let have_sealed = at.sealed.exists();
     let passphrase = match (have_identity, have_sealed) {
@@ -109,7 +116,10 @@ pub fn ensure(at: &Where, vault: &dyn Vault) -> Result<Account, String> {
             at.identity.display()
         ));
     }
-    Ok(account)
+    Ok(Opened {
+        account,
+        passphrase,
+    })
 }
 
 /// 32 random bytes, as hex: nobody types it, so it need not be typeable.
@@ -155,13 +165,22 @@ mod tests {
 
     static SERIAL: Mutex<()> = Mutex::new(());
 
+    /// The refusal, or a panic: `Opened` holds an `Account`, which has no
+    /// `Debug` for `expect_err` to print.
+    fn refused(result: Result<Opened, String>) -> String {
+        match result {
+            Err(why) => why,
+            Ok(_) => panic!("expected a refusal and got an identity"),
+        }
+    }
+
     #[test]
     fn a_first_run_makes_a_key_and_a_second_run_opens_the_same_one() {
         let _s = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
         let at = Where::under(dir.path());
         let first = ensure(&at, &Backwards).unwrap();
-        let me = first.unlocked().expect("unlocked").me();
+        let me = first.account.unlocked().expect("unlocked").me();
         assert!(at.identity.exists() && at.sealed.exists());
         // The passphrase on disk is not the passphrase.
         let sealed = std::fs::read(&at.sealed).unwrap();
@@ -187,8 +206,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let at = Where::under(dir.path());
         let first = ensure(&at, &Lost).unwrap();
-        let me = first.unlocked().unwrap().me();
-        let why = ensure(&at, &Lost).expect_err("cannot open");
+        let me = first.account.unlocked().unwrap().me();
+        let why = refused(ensure(&at, &Lost));
         assert!(why.contains("no key"), "{why}");
         // Still the same file, still the same key.
         let back = ensure(&at, &Unsealed).err();
@@ -204,9 +223,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let at = Where::under(dir.path());
         let first = ensure(&at, &Backwards).unwrap();
-        let me = first.unlocked().unwrap().me();
+        let me = first.account.unlocked().unwrap().me();
         std::fs::remove_file(&at.sealed).unwrap();
-        let why = ensure(&at, &Backwards).expect_err("refused");
+        let why = refused(ensure(&at, &Backwards));
         assert!(why.contains("Move it aside"), "{why}");
         assert_eq!(
             Account::discover(Some(at.identity.clone())).public(),

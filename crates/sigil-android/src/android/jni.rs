@@ -62,7 +62,7 @@ pub extern "system" fn Java_org_squic_sigil_Native_wake(
 
 fn wake(home: &std::path::Path, endpoint: Option<String>, budget_secs: u64) -> String {
     let account = match identity::ensure(&Where::under(home), &AndroidVault) {
-        Ok(a) => a,
+        Ok(opened) => opened.account,
         Err(why) => return format!("no identity to wake: {why}"),
     };
     let Some(unlocked) = account.unlocked() else {

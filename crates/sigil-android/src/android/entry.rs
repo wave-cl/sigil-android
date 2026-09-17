@@ -128,6 +128,9 @@ pub fn android_main(app: android_activity::AndroidApp) {
         Box::new(AndroidNotifier::new()),
         capabilities,
         report,
+        // The roster is written as it changes: an exchange added here is
+        // there at the next launch, and after the process is killed.
+        true,
     ) {
         Ok(host) => host,
         Err(why) => {
