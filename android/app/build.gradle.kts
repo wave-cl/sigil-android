@@ -6,6 +6,10 @@ plugins {
 android {
     namespace = "org.squic.sigil"
     compileSdk = 35
+    // The NDK Gradle strips native libraries with. Without it Gradle warns
+    // "unable to strip" and packages them as they are; scripts/build-apk
+    // strips first anyway, so this is the belt to that's braces.
+    ndkVersion = (System.getenv("ANDROID_NDK_VERSION") ?: "27.2.12479018")
 
     defaultConfig {
         applicationId = "org.squic.sigil"

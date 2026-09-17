@@ -44,7 +44,16 @@ release_flag=()
 
 lib="$out/$abi/libsigil_android.so"
 [ -f "$lib" ] || { echo "no $lib was built; not running Gradle"; exit 1; }
-echo "== $lib ($(du -h "$lib" | cut -f1))"
+echo "== $lib ($(du -h "$lib" | cut -f1)) before stripping"
+
+# Strip here, with the NDK's own strip. Gradle would, given an ndkVersion it
+# can find, but the first APK shipped 572 MB of debug symbols because it
+# could not, and packaged the library as it was. The symbols are in
+# target/ for anyone reading a crash.
+strip="$(ls "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/bin/llvm-strip | head -1)"
+[ -x "$strip" ] || { echo "no llvm-strip in the NDK"; exit 1; }
+"$strip" --strip-unneeded "$lib"
+echo "== $lib ($(du -h "$lib" | cut -f1)) stripped"
 
 # The C++ runtime the library links (openh264 is C++, and the NDK links it
 # shared). Nothing packages it for us: without this copy the first launch
