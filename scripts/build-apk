@@ -46,6 +46,21 @@ lib="$out/$abi/libsigil_android.so"
 [ -f "$lib" ] || { echo "no $lib was built; not running Gradle"; exit 1; }
 echo "== $lib ($(du -h "$lib" | cut -f1))"
 
+# The C++ runtime the library links (openh264 is C++, and the NDK links it
+# shared). Nothing packages it for us: without this copy the first launch
+# dies in System.loadLibrary with "libc++_shared.so not found".
+case "$abi" in
+    arm64-v8a) triple=aarch64-linux-android ;;
+    armeabi-v7a) triple=arm-linux-androideabi ;;
+    x86_64) triple=x86_64-linux-android ;;
+    x86) triple=i686-linux-android ;;
+    *) echo "unknown abi $abi"; exit 1 ;;
+esac
+cxx="$(ls "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/sysroot/usr/lib/"$triple"/libc++_shared.so | head -1)"
+[ -f "$cxx" ] || { echo "no libc++_shared.so for $triple in the NDK"; exit 1; }
+cp "$cxx" "$out/$abi/"
+echo "== packaged $(basename "$cxx") beside it"
+
 echo "== gradle $gradle_task"
 cd "$repo/android"
 if [ -x ./gradlew ]; then
