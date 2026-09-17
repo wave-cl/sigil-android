@@ -28,6 +28,18 @@ android {
     // is a build somebody forgot the first step of. The script checks.
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
 
+    // The FCM gateway, if any, as a build constant: `-Psigil.wakeProxy=…`
+    // or the property in gradle.properties. Empty means no embedded
+    // distributor is offered.
+    defaultConfig.buildConfigField(
+        "String",
+        "WAKE_PROXY",
+        "\"${(project.findProperty("sigil.wakeProxy") as String?) ?: ""}\""
+    )
+    buildFeatures {
+        buildConfig = true
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -49,7 +61,8 @@ dependencies {
     // UnifiedPush: the phone chooses its distributor (SIP-45). The connector
     // speaks to whichever one is installed; the embedded FCM distributor is
     // the bridge SIP-47 describes for a phone with nothing else, and is
-    // used only when no other distributor is present.
-    implementation("org.unifiedpush.android:connector:2.5.0")
-    implementation("org.unifiedpush.android.embedded_fcm_distributor:embedded_fcm_distributor:2.3.0")
+    // used only when no other distributor is present. Coordinates as the
+    // UnifiedPush example application's version catalog names them.
+    implementation("org.unifiedpush.android:connector:3.3.4")
+    implementation("org.unifiedpush.android:embedded-fcm-distributor:3.1.0")
 }

@@ -50,22 +50,20 @@
         </activity>
 
         <!-- SIP-45: the distributor delivers `wake`; this hands it to the
-             service that runs the window. -->
-        <receiver
-            android:name=".WakeReceiver"
-            android:exported="true"
-            android:enabled="true">
+             service that runs the window. UnifiedPush connector 3.x calls
+             a service, not a receiver. -->
+        <service
+            android:name=".PushServiceImpl"
+            android:exported="false">
             <intent-filter>
-                <action android:name="org.unifiedpush.android.connector.MESSAGE" />
-                <action android:name="org.unifiedpush.android.connector.UNREGISTERED" />
-                <action android:name="org.unifiedpush.android.connector.NEW_ENDPOINT" />
-                <action android:name="org.unifiedpush.android.connector.REGISTRATION_FAILED" />
+                <action android:name="org.unifiedpush.android.connector.PUSH_EVENT" />
             </intent-filter>
-        </receiver>
+        </service>
 
-        <!-- The embedded FCM distributor's receiver, used only when no other
-             distributor is installed. See docs/wake.md for what the bridge
-             sees, which is what SIP-47 says a bridge may. -->
+        <!-- The embedded FCM distributor's receiver, offered only when no
+             other distributor is installed and a gateway is configured. See
+             docs/wake.md for what the gateway sees, which is what SIP-47
+             says a bridge may. -->
         <receiver
             android:name=".FcmDistributor"
             android:exported="false"

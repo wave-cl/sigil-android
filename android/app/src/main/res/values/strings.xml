@@ -12,8 +12,4 @@
     <string name="answer">Answer</string>
     <string name="decline">Decline</string>
     <string name="hang_up">Hang up</string>
-    <!-- The UnifiedPush rewrite proxy the embedded FCM distributor uses,
-         with no trailing slash. Empty means the fallback stays out of the
-         way and a UnifiedPush distributor must be installed. -->
-    <string name="wake_proxy" translatable="false"></string>
 </resources>

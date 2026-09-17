@@ -46,16 +46,19 @@ woken from sleep is nothing.
 ## The distributor bridge
 
 On a phone with no UnifiedPush distributor, the embedded FCM distributor
-needs a rewrite proxy: an HTTPS service that takes the exchange's POST at
-`https://<proxy>/FCM?v2&instance=…&token=…`, forwards it to Firebase Cloud
+needs a gateway: an HTTPS service that takes the exchange's POST at
+`https://<gateway>/wpfcm?t=<token>`, forwards it to Firebase Cloud
 Messaging as a **high-priority data message** carrying the body, and answers
 404 for a token FCM no longer knows so the exchange forgets it (SIP-45).
-This is UnifiedPush's own rewrite-proxy shape, and their reference proxy
-serves it; SIP-47 §The distributor says what such a bridge may and may not
-do. Set its address in `android/app/src/main/res/values/strings.xml`
-(`wake_proxy`) and put the Firebase project's `google-services.json` in
-`android/app/`. With neither, the fallback stays out of the way and the
-Phone tab says a distributor is needed.
+This is UnifiedPush's own gateway shape and their reference gateway serves
+it; SIP-47 §The distributor says what such a bridge may and may not do. Set
+its address as the Gradle property `sigil.wakeProxy` (in
+`android/gradle.properties` or `-Psigil.wakeProxy=…`) and put the Firebase
+project's `google-services.json` in `android/app/`. With neither, no
+embedded distributor is offered and the Phone tab says one is needed.
+
+SIP-45's wake carries no VAPID authorisation, so the gateway must accept a
+bare POST; the distributor is configured with an empty VAPID key.
 
 What the bridge learns is what SIP-45 lets any distributor learn: *when*,
 per token. It is handed nothing to forward but the word `wake`.

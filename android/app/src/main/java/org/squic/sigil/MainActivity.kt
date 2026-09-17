@@ -4,6 +4,7 @@ import android.app.NativeActivity
 import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
+import org.unifiedpush.android.connector.UnifiedPush
 
 /**
  * The window. winit's NativeActivity hosts the Rust library named in the
@@ -20,6 +21,13 @@ class MainActivity : NativeActivity() {
         // A call can ring with the screen locked; the flags in the manifest
         // turn it on, and this keeps it on while the window is up.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // SIP-45: choose a distributor -- the one already chosen, else the
+        // one the platform offers, which includes this app's own embedded
+        // FCM one when nothing else is installed -- and register with it.
+        // The endpoint arrives at PushServiceImpl.onNewEndpoint.
+        UnifiedPush.tryUseCurrentOrDefaultDistributor(this) { found ->
+            if (found) UnifiedPush.register(this)
+        }
         handle(intent)
     }
 
