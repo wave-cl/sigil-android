@@ -145,10 +145,11 @@ mod tests {
         assert!(accounts.unlock(i, &opened.passphrase));
         assert!(accounts.add_exchange(i, "trunk.exchange"));
         // What the shell would write is what the identity's row now says;
-        // the file itself is the real one and is not touched by a test.
+        // the file itself is the real one and is not touched by a test. The
+        // empty name first is the default exchange, always present.
         assert_eq!(
             accounts.held(i).unwrap().exchanges(),
-            vec!["trunk.exchange".to_string()]
+            vec![String::new(), "trunk.exchange".to_string()]
         );
     }
 }
