@@ -134,7 +134,10 @@ it to egui as BrowserBack, which nothing had looked at. In a bubble the
 time is always the furthest right, with a receipt, "edited" or where
 the message came from to its left; and on a phone a row inside a bubble
 is as tall as its line, not the finger-tall control the theme makes
-every other row, so a name sits close to its words. The identity's mark in the app
+every other row, so a name sits close to its words. The same holds in the chat list, where
+the name and the last words are also centred on the mark beside them
+(egui lays out in one pass, so their height is remembered from the last
+pass and the padding above them is half of what is left). The identity's mark in the app
 bar is a size down from the desktop's, and the words the desktop shows
 beside it about a link being down or retrying are not shown on the
 phone: the dot on the mark says it, and the session reconnects itself.
