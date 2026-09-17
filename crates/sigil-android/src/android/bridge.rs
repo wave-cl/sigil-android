@@ -53,10 +53,12 @@ pub fn set_context(env: &mut JNIEnv, context: JObject) -> Result<(), String> {
 /// One of the glue's classes, by its short name, as a class usable from any
 /// attached thread.
 pub fn class<'a>(name: &str) -> jni::errors::Result<JClass<'a>> {
-    let classes = CLASSES.get().ok_or(jni::errors::Error::NullPtr("no classes: Native.init was not called"))?;
-    let global = classes
-        .get(name)
-        .ok_or(jni::errors::Error::NullPtr("a class Rust calls is not in GLUE"))?;
+    let classes = CLASSES.get().ok_or(jni::errors::Error::NullPtr(
+        "no classes: Native.init was not called",
+    ))?;
+    let global = classes.get(name).ok_or(jni::errors::Error::NullPtr(
+        "a class Rust calls is not in GLUE",
+    ))?;
     // SAFETY: the global reference lives for the process; the class handle
     // made from it is only borrowed for one call and never deleted.
     Ok(unsafe { JClass::from_raw(global.as_obj().as_raw()) })
