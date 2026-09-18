@@ -148,6 +148,14 @@ magnifier, the paperclip -- rather than beside it; there is no Send
 button, because the keyboard's own key sends. The launcher icon is the
 mark of the all-ones key (see building.md).
 
+Calls were checked on the phone against a desktop: the microphone and
+notification permissions are runtime permissions, asked for at the
+start (nothing asked, so no call could open the microphone and no
+notification was ever posted); the file picker is started on the main
+thread (from Rust's own thread it crashed inside the framework); a Rust
+panic is written to logcat before the abort; and every call event is
+logged, since a call that ended silently had nothing to read.
+
 Known limits: the soft keyboard delivers key events only (no IME
 composition, so CJK and swipe typing do not commit -- a NativeActivity
 limit winit does not bridge); the QR is drawn, not scanned.

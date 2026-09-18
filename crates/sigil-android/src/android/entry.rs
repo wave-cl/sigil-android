@@ -61,9 +61,20 @@ pub fn install_logging() {
     let _ = tracing_subscriber::registry()
         .with(super::logcat::Logcat::new("sigil"))
         .with(tracing_subscriber::EnvFilter::new(
-            "sigil=info,sigil_android=info,sigil_phone=info,sigil_net=info,sigil_chat=info",
+            "sigil=info,sigil_android=info,sigil_phone=info,sigil_net=info,sigil_chat=info,\
+             sigil_voice=info,sqex_voice=info,sqex_chat=info",
         ))
         .try_init();
+    // A panic on a phone goes to stderr, which nobody reads, and then the
+    // process aborts with only a signal in the log. Say what it was, where
+    // the rest of the log is, before it does.
+    std::panic::set_hook(Box::new(|info| {
+        let where_ = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_default();
+        tracing::error!("panicked at {where_}: {info}");
+    }));
 }
 
 /// The capability list the Phone tab shows: the desktop's rows, every one

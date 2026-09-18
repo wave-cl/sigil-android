@@ -17,12 +17,16 @@ object Files {
 
     @JvmStatic
     fun pick(activity: Activity) {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        // Called from Rust's own thread. Starting an activity belongs on the
+        // main thread; from another it crashed inside the framework.
+        activity.runOnUiThread {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+            activity.startActivityForResult(intent, PICK)
         }
-        activity.startActivityForResult(intent, PICK)
     }
 
     /** Where a file arriving as `name` is written. Called from Rust. */

@@ -14,6 +14,10 @@ import org.unifiedpush.android.connector.UnifiedPush
  * notification channels, which must exist before anything posts.
  */
 class MainActivity : NativeActivity() {
+    private companion object {
+        const val PERMISSIONS = 0x5162
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Notifier.ensureChannels(this)
@@ -22,6 +26,7 @@ class MainActivity : NativeActivity() {
         // turn it on, and this keeps it on while the window is up.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         Insets.watch(this)
+        askForWhatCallsNeed()
         // SIP-45: choose a distributor -- the one already chosen, else the
         // one the platform offers, which includes this app's own embedded
         // FCM one when nothing else is installed -- and register with it.
@@ -56,6 +61,47 @@ class MainActivity : NativeActivity() {
             intent.dataString?.let { if (it.startsWith("sigil://")) Native.link(it) }
         }
     }
+
+    /**
+
+     * The microphone and notifications are runtime permissions: the manifest
+
+     * declares them, and Android grants them only through a prompt. Nothing
+
+     * prompted, so every call ended the moment it connected -- the microphone
+
+     * would not open -- and no notification was ever shown. Asked once, at
+
+     * the start; a refusal is remembered by the system and not asked again
+
+     * every launch.
+
+     */
+
+    private fun askForWhatCallsNeed() {
+
+        val wanted = mutableListOf(android.Manifest.permission.RECORD_AUDIO)
+
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+
+            wanted += android.Manifest.permission.POST_NOTIFICATIONS
+
+        }
+
+        val missing = wanted.filter {
+
+            checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        }
+
+        if (missing.isNotEmpty()) {
+
+            requestPermissions(missing.toTypedArray(), PERMISSIONS)
+
+        }
+
+    }
+
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
