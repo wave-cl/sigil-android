@@ -65,6 +65,22 @@ pub fn post_message(
 }
 
 /// Present a ring through `Notifier.ring`.
+/// `Notifier.endRing(context, channelHex)`: take a ring off the shade.
+pub fn end_ring(channel: &[u8; 32]) -> Result<(), String> {
+    let channel = hex(channel);
+    with_env(|env, context| {
+        let class = bridge::class("Notifier")?;
+        let channel = jstring(env, &channel)?;
+        env.call_static_method(
+            class,
+            "endRing",
+            "(Landroid/content/Context;Ljava/lang/String;)V",
+            &[JValue::Object(context), JValue::Object(&channel)],
+        )?;
+        Ok(())
+    })
+}
+
 pub fn post_ring(
     identity: &str,
     exchange: &str,
@@ -145,8 +161,14 @@ impl Notify for AndroidNotifier {
             None => (String::new(), String::new(), None),
         };
         let result = match (notice.sound, channel) {
+            // **The body, not the summary.** The summary of a ring is the
+            // constant "Incoming call"; the body is what names the caller --
+            // the conversation and who it is from. Posting the summary as
+            // the ring's title threw the caller away and put a fixed phrase
+            // where their name belongs, which is why a ring on this phone
+            // never said who was calling.
             (Sound::Ring, Some(channel)) => {
-                post_ring(&identity, &exchange, &channel, notice.summary)
+                post_ring(&identity, &exchange, &channel, notice.body)
             }
             _ => post_message(
                 &identity,
@@ -164,6 +186,13 @@ impl Notify for AndroidNotifier {
                 tracing::warn!("could not post a notification: {why}");
                 false
             }
+        }
+    }
+
+    /// `Notifier.endRing`: the call that had never been made from anywhere.
+    fn withdraw(&self, target: &Target) {
+        if let Err(why) = end_ring(&target.channel) {
+            tracing::warn!("could not take a ring down: {why}");
         }
     }
 
