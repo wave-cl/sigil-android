@@ -15,8 +15,19 @@ import java.io.File
 object Files {
     private const val PICK = 0x5161
 
+    /**
+     * Called from Rust, with no activity passed: see [Host]. Handing a raw
+     * `jobject` across for this segfaulted the process.
+     */
     @JvmStatic
-    fun pick(activity: Activity) {
+    fun pick() {
+        val activity = Host.get()
+        if (activity == null) {
+            // No window: nothing can be picked, and the waiting Rust side
+            // must be released or the composer stays stuck.
+            Native.picked(null)
+            return
+        }
         // Called from Rust's own thread. Starting an activity belongs on the
         // main thread; from another it crashed inside the framework.
         activity.runOnUiThread {
@@ -31,8 +42,8 @@ object Files {
 
     /** Where a file arriving as `name` is written. Called from Rust. */
     @JvmStatic
-    fun saveTarget(activity: Activity, name: String): String {
-        val dir = activity.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: activity.filesDir
+    fun saveTarget(ctx: android.content.Context, name: String): String {
+        val dir = ctx.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: ctx.filesDir
         dir.mkdirs()
         return File(dir, if (name.isBlank()) "attachment" else name).absolutePath
     }

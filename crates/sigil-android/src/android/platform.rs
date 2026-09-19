@@ -250,20 +250,16 @@ impl Chooser for AndroidChooser {
             }
             *slot = Some(answer);
         }
-        // `Files.pick(Activity)`: the activity is the NativeActivity the
-        // window runs in, which android-activity's glue makes available.
+        // `Files.pick()`. **No activity crosses this boundary.** It used to:
+        // the raw `jobject` from `ndk_context` was handed to Kotlin, and
+        // pressing the paperclip segfaulted the process inside `Files.pick`
+        // -- a SIGSEGV rather than an exception, because a bad reference is
+        // not a null one and nothing on either side could check it. Kotlin
+        // tracks its own window now (`Host`), which is where an activity's
+        // lifetime is actually known.
         let started = with_env(|env, _| {
-            let ctx = ndk_context::android_context();
-            // SAFETY: the pointer is the activity object android-activity
-            // handed the glue, valid for the life of the activity.
-            let activity = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
             let class = bridge::class("Files")?;
-            env.call_static_method(
-                class,
-                "pick",
-                "(Landroid/app/Activity;)V",
-                &[JValue::Object(&activity)],
-            )?;
+            env.call_static_method(class, "pick", "()V", &[])?;
             Ok(())
         });
         if let Err(why) = started {
@@ -274,17 +270,17 @@ impl Chooser for AndroidChooser {
     }
 
     fn save_file(&self, name: &str) -> Pick {
-        let target = with_env(|env, _| {
-            let ctx = ndk_context::android_context();
-            // SAFETY: as above.
-            let activity = unsafe { jni::objects::JObject::from_raw(ctx.context().cast()) };
+        // The application context, the same one every other glue call uses.
+        // Saving needs a Context and never needed an activity, so the raw
+        // pointer that crashed `pick` was never load-bearing here either.
+        let target = with_env(|env, context| {
             let class = bridge::class("Files")?;
             let name = jstring(env, name)?;
             let out = env.call_static_method(
                 class,
                 "saveTarget",
-                "(Landroid/app/Activity;Ljava/lang/String;)Ljava/lang/String;",
-                &[JValue::Object(&activity), JValue::Object(&name)],
+                "(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;",
+                &[JValue::Object(context), JValue::Object(&name)],
             )?;
             let s = jni::objects::JString::from(out.l()?);
             Ok(bridge::string_from(env, &s))

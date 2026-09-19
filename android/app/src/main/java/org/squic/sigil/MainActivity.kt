@@ -20,6 +20,8 @@ class MainActivity : NativeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Before anything that might need a window (the file chooser does).
+        Host.attach(this)
         Notifier.ensureChannels(this)
         Vault.ensureKey()
         // A call can ring with the screen locked; the flags in the manifest
@@ -35,6 +37,13 @@ class MainActivity : NativeActivity() {
             if (found) UnifiedPush.register(this)
         }
         handle(intent)
+    }
+
+    override fun onDestroy() {
+        // Only if this window is still the one Host holds: a recreation
+        // attaches the new one before the old one is destroyed.
+        Host.detach(this)
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -55,7 +64,8 @@ class MainActivity : NativeActivity() {
         val exchange = intent.getStringExtra(Notifier.EXTRA_EXCHANGE)
         val channel = intent.getStringExtra(Notifier.EXTRA_CHANNEL)
         if (identity != null && exchange != null && channel != null) {
-            Native.pressed(identity, exchange, channel)
+            // Answer is a press that also answers; an ordinary press is not.
+            Native.pressed(identity, exchange, channel, intent.getBooleanExtra(Notifier.EXTRA_ANSWER, false))
         }
         if (intent.action == Intent.ACTION_VIEW) {
             intent.dataString?.let { if (it.startsWith("sigil://")) Native.link(it) }

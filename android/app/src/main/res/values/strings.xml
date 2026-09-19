@@ -9,6 +9,8 @@
     <string name="channel_quiet_about">Sigil checking for what arrived while it slept, or carrying a call</string>
     <string name="waking">Checking what arrived</string>
     <string name="in_call">In a call</string>
+    <string name="calling">Incoming call</string>
+    <string name="calling_unknown">Someone in your exchange</string>
     <string name="answer">Answer</string>
     <string name="decline">Decline</string>
     <string name="hang_up">Hang up</string>

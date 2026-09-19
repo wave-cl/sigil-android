@@ -178,7 +178,9 @@ pub extern "system" fn Java_org_squic_sigil_Native_picked(
     platform::picked(Some(out));
 }
 
-/// `Native.pressed(identity, exchange, channelHex)`: a notification led here.
+/// `Native.pressed(identity, exchange, channelHex, answer)`: a notification
+/// led here. `answer` is Answer on a ring, which opens the conversation
+/// **and** answers the call; an ordinary press only opens it.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_org_squic_sigil_Native_pressed(
     mut env: JNIEnv,
@@ -186,6 +188,7 @@ pub extern "system" fn Java_org_squic_sigil_Native_pressed(
     identity: JString,
     exchange: JString,
     channel: JString,
+    answer: jni::sys::jboolean,
 ) {
     let identity = bridge::string_from(&mut env, &identity);
     let exchange = bridge::string_from(&mut env, &exchange);
@@ -204,6 +207,7 @@ pub extern "system" fn Java_org_squic_sigil_Native_pressed(
         identity,
         exchange,
         channel: bytes,
+        answer: answer != 0,
     });
 }
 

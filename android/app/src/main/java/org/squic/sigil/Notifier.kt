@@ -27,6 +27,9 @@ object Notifier {
     const val EXTRA_EXCHANGE = "org.squic.sigil.exchange"
     const val EXTRA_CHANNEL = "org.squic.sigil.channel"
 
+    /** The press was Answer on a ring, not an ordinary press. */
+    const val EXTRA_ANSWER = "org.squic.sigil.answer"
+
     fun ensureChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
@@ -95,33 +98,55 @@ object Notifier {
     }
 
     /**
-     * A ring. Full-screen so it reaches a locked screen; Answer and Decline
-     * lead into the window, where the call is answered exactly as on a
-     * desktop -- the phone does not answer a call from a notification
-     * without showing it.
+     * A ring. Full-screen so it reaches a locked screen.
+     *
+     * **Two different intents, and that is the point.** Pressing the body
+     * opens the conversation; pressing Answer opens it *and answers*. They
+     * were the same intent once, so Answer only ever opened the window and
+     * the call went on ringing behind it -- a button that did nothing.
+     * They differ by `EXTRA_ANSWER`, and because a `PendingIntent` is
+     * matched without its extras, the two need **different request codes**
+     * or the platform hands out the first one twice.
+     *
+     * The phone still does not answer without showing the conversation: the
+     * window comes up and the call is answered there, by the same path the
+     * Answer button takes.
      */
     @JvmStatic
     fun ring(ctx: Context, identity: String, exchange: String, channelHex: String, from: String) {
-        val open = Intent(ctx, MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra(EXTRA_IDENTITY, identity)
-            putExtra(EXTRA_EXCHANGE, exchange)
-            putExtra(EXTRA_CHANNEL, channelHex)
+        fun leadingTo(answer: Boolean, code: Int): PendingIntent {
+            val open = Intent(ctx, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra(EXTRA_IDENTITY, identity)
+                putExtra(EXTRA_EXCHANGE, exchange)
+                putExtra(EXTRA_CHANNEL, channelHex)
+                if (answer) putExtra(EXTRA_ANSWER, true)
+            }
+            return PendingIntent.getActivity(
+                ctx, code, open,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
         }
-        val pending = PendingIntent.getActivity(
-            ctx, channelHex.hashCode(), open,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val show = leadingTo(false, channelHex.hashCode())
+        val answer = leadingTo(true, channelHex.hashCode() xor 0x5ADD)
+        // Who is calling goes in the title. The body says what is
+        // happening, and used to carry the *channel's* description --
+        // "Somebody is calling" -- which is settings text about the
+        // category, not about this call, and reads as though the caller
+        // were unknown when the title names them.
+        val who = from.ifBlank { ctx.getString(R.string.calling_unknown) }
         val n = Notification.Builder(ctx, CALLS)
             .setSmallIcon(R.drawable.ic_stat_sigil)
-            .setContentTitle(from)
-            .setContentText(ctx.getString(R.string.channel_calls_about))
+            .setContentTitle(who)
+            .setContentText(ctx.getString(R.string.calling))
             .setCategory(Notification.CATEGORY_CALL)
-            .setFullScreenIntent(pending, true)
-            .setContentIntent(pending)
+            .setFullScreenIntent(show, true)
+            .setContentIntent(show)
+            // Ongoing: a ring is not dismissed by swiping it away. It is
+            // taken down by `endRing` when the call is answered, declined
+            // or given up on, which is the only thing that knows.
             .setOngoing(true)
-            .setAutoCancel(true)
-            .addAction(Notification.Action.Builder(null, ctx.getString(R.string.answer), pending).build())
+            .addAction(Notification.Action.Builder(null, ctx.getString(R.string.answer), answer).build())
             .build()
         ctx.getSystemService(NotificationManager::class.java).notify(channelHex, 2, n)
     }

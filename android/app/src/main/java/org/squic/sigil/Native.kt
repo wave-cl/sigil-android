@@ -33,7 +33,7 @@ object Native {
     external fun picked(paths: Array<String>?)
 
     /** A notification was pressed: which account, exchange and conversation it led to. */
-    external fun pressed(identity: String, exchange: String, channelHex: String)
+    external fun pressed(identity: String, exchange: String, channelHex: String, answer: Boolean)
 
     /** A `sigil://` link arrived while the app was running. Offered, never acted on silently. */
     external fun link(url: String)
