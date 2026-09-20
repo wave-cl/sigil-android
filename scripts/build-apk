@@ -51,18 +51,26 @@ abi="${abi:-arm64-v8a}"
 platform=26
 out="$repo/android/app/src/main/jniLibs"
 
-# Until sqnr's Android change is tagged: point cargo at the sibling checkout.
-# sqex is already patched in Cargo.toml (SIP-52). Override with SQNR_PATH.
-sqnr="${SQNR_PATH:-$repo/../sqnr}"
-patch_args=(
-    --config "patch.\"https://github.com/wave-cl/sqnr\".sqnr.path=\"$sqnr/crates/sqnr\""
-    --config "patch.\"https://github.com/wave-cl/sqnr\".sqnr-core.path=\"$sqnr/crates/sqnr-core\""
-)
+# The tagged stack, as Cargo.toml pins it. SQNR_PATH / SQEX_PATH point cargo
+# at a sibling checkout instead, for co-development only; a release build
+# sets neither.
+patch_args=()
+if [ -n "${SQNR_PATH:-}" ]; then
+    patch_args+=(
+        --config "patch.\"https://github.com/wave-cl/sqnr\".sqnr.path=\"$SQNR_PATH/crates/sqnr\""
+        --config "patch.\"https://github.com/wave-cl/sqnr\".sqnr-core.path=\"$SQNR_PATH/crates/sqnr-core\""
+    )
+fi
+if [ -n "${SQEX_PATH:-}" ]; then
+    for c in sqex-proto sqex-discovery sqex-voice sqex-chat sqexd; do
+        patch_args+=(--config "patch.\"https://github.com/wave-cl/sqex\".$c.path=\"$SQEX_PATH/crates/$c\"")
+    done
+fi
 
 echo "== cargo ndk ($abi, $profile)"
 release_flag=()
 [ "$profile" = release ] && release_flag=(--release)
-(cd "$repo" && cargo ndk -t "$abi" -P "$platform" -o "$out" "${patch_args[@]}" build -p sigil-android "${release_flag[@]}")
+(cd "$repo" && cargo ndk -t "$abi" -P "$platform" -o "$out" ${patch_args[@]+"${patch_args[@]}"} build -p sigil-android "${release_flag[@]}")
 
 lib="$out/$abi/libsigil_android.so"
 [ -f "$lib" ] || { echo "no $lib was built; not running Gradle"; exit 1; }
