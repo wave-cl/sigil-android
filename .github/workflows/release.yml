@@ -100,6 +100,21 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      # The Rust cache first: it carries ~/.cargo/bin, so the cargo-ndk
+      # below is already installed on a warm run and `cargo install` is a
+      # no-op rather than a build from source.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sigil-android
+      # Gradle's own distribution and dependency caches: the wrapper step
+      # downloaded Gradle on every run, 70 s of a seven-minute release.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/wrapper
+            ~/.gradle/caches
+          key: gradle-${{ runner.os }}-8.11.1-${{ hashFiles('sigil-android/android/**/*.kts') }}
+          restore-keys: gradle-${{ runner.os }}-8.11.1-
       - name: NDK and cargo-ndk
         run: |
           sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -108,9 +123,6 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_VERSION=27.2.12479018" >> "$GITHUB_ENV"
           cargo install cargo-ndk --locked
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: sigil-android
       # Evaluates build.gradle.kts, which wants the whole upload key or none
       # of it; the keystore path is already in the environment from above.
       - name: Gradle wrapper
