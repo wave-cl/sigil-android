@@ -111,8 +111,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: sigil-android
+      # Evaluates build.gradle.kts, which wants the whole upload key or none
+      # of it; the keystore path is already in the environment from above.
       - name: Gradle wrapper
         run: cd sigil-android/android && gradle wrapper --gradle-version 8.11.1
+        env:
+          SIGIL_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.SIGIL_UPLOAD_KEYSTORE_PASSWORD }}
+          SIGIL_UPLOAD_KEY_ALIAS: ${{ secrets.SIGIL_UPLOAD_KEY_ALIAS }}
+          SIGIL_UPLOAD_KEY_PASSWORD: ${{ secrets.SIGIL_UPLOAD_KEY_PASSWORD }}
 
       # Both signed with the upload key, since it is in the environment: the
       # APK installs over the Play build on a phone, and the other way.
