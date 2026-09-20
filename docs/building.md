@@ -21,7 +21,7 @@ CARGO_TARGET_DIR=../sigil/target cargo test --workspace
 
 ## The phone
 
-Needs: the Android SDK with platform 35 and build-tools 35, the NDK (r26 or
+Needs: the Android SDK with platform 36 and build-tools 36, the NDK (r26 or
 newer), `cargo-ndk`, the `aarch64-linux-android` Rust target, cmake (the
 Opus codec builds itself with it), and a JDK 17 for Gradle.
 
@@ -32,6 +32,7 @@ export ANDROID_HOME=…/Android/sdk
 export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/<version>
 scripts/build-apk            # debug APK at android/app/build/outputs/apk/debug/
 scripts/build-apk --release
+scripts/build-apk --bundle   # the .aab for Play, signed with the upload key (docs/play-store.md)
 ```
 
 On a Mac with Homebrew, the whole toolchain is four installs and one
@@ -44,7 +45,7 @@ export JAVA_HOME=$(brew --prefix)/opt/openjdk@17
 export ANDROID_HOME=$(brew --prefix)/share/android-commandlinetools
 $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install \
-    "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0"
+    "ndk;27.2.12479018" "platforms;android-36" "build-tools;36.0.0"
 export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018
 cargo install cargo-ndk
 (cd android && gradle wrapper --gradle-version 8.11.1)   # as CI does

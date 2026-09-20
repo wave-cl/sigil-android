@@ -1,0 +1,175 @@
+# A release: the bundle Play takes and the APK a phone takes over adb, both
+# signed with the upload key, attached to a GitHub release -- and, when a
+# Play service account is in the secrets, pushed to a Play track.
+#
+# Runs on a `v*` tag whose version is the workspace's. The sibling trees are
+# built at the refs given (main by default, as ci.yml does) and the release
+# notes record which commits those were, so a release says what it was
+# built from until the pins in Cargo.toml move to tags and the patches go.
+#
+# Secrets (docs/play-store.md):
+#   SIGIL_UPLOAD_KEYSTORE_B64       the PKCS12 from scripts/upload-key, base64
+#   SIGIL_UPLOAD_KEYSTORE_PASSWORD
+#   SIGIL_UPLOAD_KEY_ALIAS
+#   SIGIL_UPLOAD_KEY_PASSWORD
+#   PLAY_SERVICE_ACCOUNT_JSON       optional: a Play Console service account's key
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      sigil_ref:
+        description: "wave-cl/sigil ref to build against"
+        default: main
+      sqex_ref:
+        description: "wave-cl/sqex ref to build against"
+        default: main
+      sqnr_ref:
+        description: "wave-cl/sqnr ref to build against"
+        default: main
+      track:
+        description: "Play track to upload to (blank: no upload)"
+        default: internal
+
+env:
+  SIGIL_REF: ${{ github.event.inputs.sigil_ref || 'main' }}
+  SQEX_REF: ${{ github.event.inputs.sqex_ref || 'main' }}
+  SQNR_REF: ${{ github.event.inputs.sqnr_ref || 'main' }}
+  TRACK: ${{ github.event.inputs.track || 'internal' }}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sigil-android
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sigil
+          ref: ${{ env.SIGIL_REF }}
+          path: sigil
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sqex
+          ref: ${{ env.SQEX_REF }}
+          path: sqex
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sqnr
+          ref: ${{ env.SQNR_REF }}
+          path: sqnr
+
+      # The tag is the version, or the release is misnamed from the start.
+      - name: Version
+        id: version
+        run: |
+          v="$(sed -n '/^\[workspace.package\]/,/^\[/{s/^version *= *"\([^"]*\)".*/\1/p;}' sigil-android/Cargo.toml)"
+          [ -n "$v" ] || { echo "no workspace version"; exit 1; }
+          if [ "${GITHUB_REF_TYPE}" = tag ] && [ "${GITHUB_REF_NAME}" != "v$v" ]; then
+            echo "tag ${GITHUB_REF_NAME} is not the workspace version v$v"; exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      # No key, no release: the fallback in build.gradle.kts is for a phone
+      # over adb, and a debug-signed bundle is one Play refuses later.
+      - name: Upload key
+        run: |
+          for v in SIGIL_UPLOAD_KEYSTORE_B64 SIGIL_UPLOAD_KEYSTORE_PASSWORD SIGIL_UPLOAD_KEY_ALIAS SIGIL_UPLOAD_KEY_PASSWORD; do
+            [ -n "${!v}" ] || { echo "secret $v is not set (docs/play-store.md)"; exit 1; }
+          done
+          printf '%s' "$SIGIL_UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.p12"
+          chmod 600 "$RUNNER_TEMP/upload.p12"
+          echo "SIGIL_UPLOAD_KEYSTORE=$RUNNER_TEMP/upload.p12" >> "$GITHUB_ENV"
+        env:
+          SIGIL_UPLOAD_KEYSTORE_B64: ${{ secrets.SIGIL_UPLOAD_KEYSTORE_B64 }}
+          SIGIL_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.SIGIL_UPLOAD_KEYSTORE_PASSWORD }}
+          SIGIL_UPLOAD_KEY_ALIAS: ${{ secrets.SIGIL_UPLOAD_KEY_ALIAS }}
+          SIGIL_UPLOAD_KEY_PASSWORD: ${{ secrets.SIGIL_UPLOAD_KEY_PASSWORD }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          targets: aarch64-linux-android
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: NDK and cargo-ndk
+        run: |
+          sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdk" --licenses >/dev/null || true
+          "$sdk" --install "ndk;27.2.12479018" "platforms;android-36" "build-tools;36.0.0"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_VERSION=27.2.12479018" >> "$GITHUB_ENV"
+          cargo install cargo-ndk --locked
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sigil-android
+      - name: Gradle wrapper
+        run: cd sigil-android/android && gradle wrapper --gradle-version 8.11.1
+
+      # Both signed with the upload key, since it is in the environment: the
+      # APK installs over the Play build on a phone, and the other way.
+      - name: Bundle
+        run: cd sigil-android && scripts/build-apk --bundle
+        env:
+          SIGIL_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.SIGIL_UPLOAD_KEYSTORE_PASSWORD }}
+          SIGIL_UPLOAD_KEY_ALIAS: ${{ secrets.SIGIL_UPLOAD_KEY_ALIAS }}
+          SIGIL_UPLOAD_KEY_PASSWORD: ${{ secrets.SIGIL_UPLOAD_KEY_PASSWORD }}
+      - name: APK
+        run: cd sigil-android && scripts/build-apk --release
+        env:
+          SIGIL_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.SIGIL_UPLOAD_KEYSTORE_PASSWORD }}
+          SIGIL_UPLOAD_KEY_ALIAS: ${{ secrets.SIGIL_UPLOAD_KEY_ALIAS }}
+          SIGIL_UPLOAD_KEY_PASSWORD: ${{ secrets.SIGIL_UPLOAD_KEY_PASSWORD }}
+
+      - name: Name the artifacts
+        id: artifacts
+        run: |
+          v="${{ steps.version.outputs.version }}"
+          mkdir -p out
+          cp sigil-android/android/app/build/outputs/bundle/release/app-release.aab "out/sigil-android-v$v.aab"
+          cp sigil-android/android/app/build/outputs/apk/release/app-release.apk "out/sigil-android-v$v.apk"
+          {
+            echo "Built from:"
+            echo "- sigil-android \`$(git -C sigil-android rev-parse HEAD)\`"
+            echo "- sigil ${SIGIL_REF} \`$(git -C sigil rev-parse HEAD)\`"
+            echo "- sqex ${SQEX_REF} \`$(git -C sqex rev-parse HEAD)\`"
+            echo "- sqnr ${SQNR_REF} \`$(git -C sqnr rev-parse HEAD)\`"
+            echo
+            echo "The \`.aab\` is what Play was given; the \`.apk\` installs over adb and is signed with the same key."
+          } > out/notes.md
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigil-android-v${{ steps.version.outputs.version }}
+          path: out/*
+
+      - name: GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" out/*.aab out/*.apk \
+            --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --notes-file out/notes.md
+
+      # The console has to know the app first: it is created there by hand,
+      # with the first bundle uploaded by hand to enrol in Play app signing.
+      # From then on this puts each release on the track named.
+      - name: Play upload
+        if: env.TRACK != '' && env.PLAY_SERVICE_ACCOUNT_JSON != ''
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: org.squic.sigil
+          releaseFiles: out/sigil-android-v${{ steps.version.outputs.version }}.aab
+          track: ${{ env.TRACK }}
+          status: completed

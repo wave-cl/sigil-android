@@ -3,6 +3,8 @@
 // receiver for the wake, a service for a call, and the notifications.
 // Everything that decides anything is in Rust; see ../README.md.
 plugins {
-    id("com.android.application") version "8.7.3" apply false
+    // 8.9 is the first plugin that knows compile SDK 36; it wants Gradle
+    // 8.11.1, which is what ci.yml generates the wrapper with.
+    id("com.android.application") version "8.9.3" apply false
     id("org.jetbrains.kotlin.android") version "2.3.0" apply false
 }

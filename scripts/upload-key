@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+#
+# Make the Play upload key: a PKCS12 keystore holding one RSA key and a
+# self-signed certificate, which Play's app signing trusts uploads from.
+#
+#   scripts/upload-key [PATH]     # default ~/.sigil-upload-key.p12
+#
+# OpenSSL, not keytool: this machine has no Java, and a PKCS12 file is what
+# both read. OpenSSL asks for the password on its own prompt; the key and
+# the store get the same one (Java's PKCS12 reader expects that), so the
+# two SIGIL_UPLOAD_*_PASSWORD settings are the same value.
+#
+# Not the app signing key. With Play app signing Google holds that; this
+# key only signs what is uploaded, and a lost one is replaced through the
+# console. Keep it out of the repository all the same: back it up, and put
+# it in the release workflow's secrets (docs/play-store.md says which).
+set -euo pipefail
+
+out="${1:-$HOME/.sigil-upload-key.p12}"
+alias=sigil-upload
+[ -e "$out" ] && { echo "$out exists; not overwriting"; exit 1; }
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+# 2048-bit RSA is what Play asks of an upload key; valid for 27 years,
+# past the 2033 date Play requires a key to outlive.
+openssl req -x509 -newkey rsa:2048 -noenc -days 10000 \
+    -keyout "$tmp/key.pem" -out "$tmp/cert.pem" \
+    -subj "/CN=Sigil upload key/O=squic.org" 2>/dev/null
+echo "Choose the keystore password (asked twice):"
+openssl pkcs12 -export -inkey "$tmp/key.pem" -in "$tmp/cert.pem" \
+    -name "$alias" -out "$out"
+chmod 600 "$out"
+
+echo
+echo "wrote $out (alias $alias)"
+echo "certificate fingerprint, which the console shows once the key is registered:"
+openssl x509 -in "$tmp/cert.pem" -noout -fingerprint -sha256 | sed 's/^/  /'
+echo
+echo "to sign a bundle:"
+echo "  export SIGIL_UPLOAD_KEYSTORE=$out"
+echo "  export SIGIL_UPLOAD_KEY_ALIAS=$alias"
+echo "  export SIGIL_UPLOAD_KEYSTORE_PASSWORD=…  SIGIL_UPLOAD_KEY_PASSWORD=…   # the same value"

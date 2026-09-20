@@ -64,4 +64,6 @@ scripts/               build-apk, check
 The host half: `cargo test --workspace` on a desktop, exactly as CI runs it.
 The phone: `scripts/build-apk`, which needs the Android NDK and
 `cargo-ndk`; [docs/building.md](docs/building.md) says how, and what the
-build depends on that is not tagged yet.
+build depends on that is not tagged yet. Releasing to Google Play is
+[docs/play-store.md](docs/play-store.md): the bundle, the upload key, the
+`release` workflow, and what the console asks.

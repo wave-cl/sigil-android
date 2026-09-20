@@ -26,8 +26,12 @@ class WakeService : Service() {
             .setContentTitle(getString(R.string.waking))
             .setOngoing(true)
             .build()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(3, notice, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        // A short service (Android 14): three minutes, no permission of its
+        // own, and nothing to declare to Play -- `dataSync` is the type Play
+        // asks a justification and a video for. Older platforms take the
+        // manifest's type as it is.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(3, notice, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE)
         } else {
             startForeground(3, notice)
         }

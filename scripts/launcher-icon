@@ -5,8 +5,9 @@
 #   scripts/launcher-icon            # the all-ones key (32 bytes of 0x01): the default icon
 #   scripts/launcher-icon <KEY>      # some identity's mark
 #
-# Writes android/app/src/main/res/mipmap-*/ic_launcher.png. Commit them.
+# Writes android/app/src/main/res/mipmap-*/ic_launcher.png and the store
+# listing's icon and feature graphic into android/play/. Commit them.
 set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo"
-cargo run -q -p sigil-android --bin launcher_icon -- "${1:-4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi}" android/app/src/main/res
+cargo run -q -p sigil-android --bin launcher_icon -- "${1:-4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi}" android/app/src/main/res android/play

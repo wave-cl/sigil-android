@@ -2,8 +2,12 @@
 #
 # Build the Rust library for Android and assemble the APK.
 #
-#   scripts/build-apk             # debug
-#   scripts/build-apk --release
+#   scripts/build-apk             # debug APK
+#   scripts/build-apk --release   # release APK, for adb; debug-signed unless
+#                                 # the upload key is in the environment
+#   scripts/build-apk --bundle    # the release bundle (.aab) Play takes,
+#                                 # signed with the upload key -- refused
+#                                 # without it (docs/play-store.md)
 #
 # Two steps, deliberately separate: `cargo ndk` builds libsigil_android.so
 # into the Gradle project's jniLibs, then Gradle packages it. Gradle does
@@ -13,10 +17,28 @@ set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 profile=debug
 gradle_task=assembleDebug
-if [ "${1:-}" = "--release" ]; then
-    profile=release
-    gradle_task=assembleRelease
-fi
+outputs='app/build/outputs/apk/*/*.apk'
+case "${1:-}" in
+    "") ;;
+    --release)
+        profile=release
+        gradle_task=assembleRelease
+        ;;
+    --bundle)
+        profile=release
+        gradle_task=bundleRelease
+        outputs='app/build/outputs/bundle/release/*.aab'
+        # Play refuses a debug-signed bundle, so building one is only a
+        # way to find that out later. build.gradle.kts takes the debug key
+        # when the upload key is absent, for an APK that installs over adb;
+        # a bundle does not get that fallback.
+        for v in SIGIL_UPLOAD_KEYSTORE SIGIL_UPLOAD_KEYSTORE_PASSWORD SIGIL_UPLOAD_KEY_ALIAS SIGIL_UPLOAD_KEY_PASSWORD; do
+            [ -n "${!v:-}" ] || { echo "--bundle needs the upload key: $v is not set (see docs/play-store.md)"; exit 1; }
+        done
+        [ -f "$SIGIL_UPLOAD_KEYSTORE" ] || { echo "SIGIL_UPLOAD_KEYSTORE=$SIGIL_UPLOAD_KEYSTORE is not a file"; exit 1; }
+        ;;
+    *) echo "usage: scripts/build-apk [--release|--bundle]"; exit 2 ;;
+esac
 
 : "${ANDROID_NDK_HOME:?set ANDROID_NDK_HOME to the NDK (see docs/building.md)}"
 command -v cargo-ndk >/dev/null || { echo "cargo-ndk is not installed: cargo install cargo-ndk"; exit 1; }
@@ -77,4 +99,4 @@ if [ -x ./gradlew ]; then
 else
     gradle --no-daemon "$gradle_task"
 fi
-ls -1 app/build/outputs/apk/*/*.apk
+ls -1 $outputs
