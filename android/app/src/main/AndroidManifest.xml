@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -63,11 +64,27 @@
         <!-- The embedded FCM distributor's receiver, offered only when no
              other distributor is installed and a gateway is configured. See
              docs/wake.md for what the gateway sees, which is what SIP-47
-             says a bridge may. -->
+             says a bridge may.
+
+             `enabled` is the build's answer to "is a gateway configured".
+             It used to be a flat "true" while the class refused to work
+             without one, so the connector found a distributor, namely this
+             app, that could never hand back an endpoint. -->
+        <!-- The library's own receiver, merged in from
+             `embedded_fcm_distributor`, which is the one the connector
+             actually finds. Disabling our subclass alone left this
+             answering the query, so the app still offered itself as a
+             distributor it could not be. Overridden rather than removed,
+             because with a gateway configured it is exactly what we want. -->
+        <receiver
+            android:name="org.unifiedpush.android.embedded_fcm_distributor.impl.UnifiedPushReceiver"
+            android:enabled="${wakeBridge}"
+            tools:replace="android:enabled" />
+
         <receiver
             android:name=".FcmDistributor"
             android:exported="false"
-            android:enabled="true">
+            android:enabled="${wakeBridge}">
             <intent-filter>
                 <action android:name="org.unifiedpush.android.distributor.feature.BYTES_MESSAGE" />
                 <action android:name="org.unifiedpush.android.distributor.REGISTER" />

@@ -80,11 +80,20 @@ android {
     // The FCM gateway, if any, as a build constant: `-Psigil.wakeProxy=…`
     // or the property in gradle.properties. Empty means no embedded
     // distributor is offered.
-    defaultConfig.buildConfigField(
-        "String",
-        "WAKE_PROXY",
-        "\"${(project.findProperty("sigil.wakeProxy") as String?) ?: ""}\""
-    )
+    val wakeProxy = (project.findProperty("sigil.wakeProxy") as String?) ?: ""
+    defaultConfig.buildConfigField("String", "WAKE_PROXY", "\"$wakeProxy\"")
+    // **And the receiver is not registered at all when there is none.**
+    //
+    // `FcmDistributor` returns no gateway without one, so it cannot produce
+    // an endpoint -- but it was declared `enabled="true"` regardless, so the
+    // connector found a distributor and it was this app. Sigil then asked
+    // for the current or default distributor, was offered itself, and got
+    // nothing; its own startup line said in the same breath that no
+    // distributor was installed. Two true statements that contradict each
+    // other, and a phone that cannot be woken while appearing configured.
+    //
+    // A component that cannot do the job must not answer the query for one.
+    defaultConfig.manifestPlaceholders["wakeBridge"] = wakeProxy.isNotBlank().toString()
     buildFeatures {
         buildConfig = true
     }
