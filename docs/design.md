@@ -126,6 +126,41 @@ an edge past the screen. The phone is 360 points across (1080 pixels at
 3×); the test harnesses are sized from it, not from a Pixel's 412, which
 is the width at which every test passed while the phone overflowed.
 
+That rule is a test now rather than a habit, in four places: the five chat
+routes, the operator console, the Calls pane, and `sigil-ui`'s own list
+widgets. Each draws into a 360-point pane and asserts what the ui came out
+as -- which is the fault itself, in one number, and needs no renderer, so it
+runs in an ordinary `cargo test` rather than in the snapshot job somebody
+runs before a release. The failure names the route and the number: "Members
+draws 422 points wide in a 360-point pane" is actionable and a red snapshot
+is not.
+
+It was written after a day of finding the same bug by eye. Members carried
+five buttons per member, some 200 points over, so they were painted across
+the member above and the reports below began off the left edge. The console
+and the Calls pane asked for boxes 420 and 260 points wide, and the prose
+around them then wrapped to the overflowed width and was clipped mid-word by
+the pane. The roster's line about the path -- "2.1% lost, 180 ms of buffer,
+concealing 3 frames in 100" -- sat at the end of a `horizontal` and took a
+row to 572.
+
+**Run it on data as long as data really gets.** The fixtures were "Ada" and
+"notes.txt": nothing in them is longer than a phone, so every pane passed
+while a display name, a camera's filename or a URL would have torn it apart.
+Lengthening the fixture found two more immediately, both of the same shape:
+`truncate` shrinks a label to what is available *at the moment it is added*,
+so a name given the whole row takes the whole row and whatever follows it
+goes past the edge. The fix each time is to lay out the fixed part first and
+give the variable part the remainder -- measured, not guessed.
+
+Two faults were found only on the phone, and neither had a failing test
+until the device said what shape it was. A tap on the app bar revealed a
+message's action strip, because the strip's hit test ran `Rect::contains` on
+the bubble's layout rect and a message scrolled behind the bar still has
+one. And every capability this phone *has* drew as a tofu box, because the
+filled disc it was marked with is not in egui's bundled font: the one state
+somebody opens that pane to confirm read as a rendering fault.
+
 The phone's Back button closes whatever menu is open; with none open it
 steps back through the shell's history, then asks the app for a step
 (`App::back`: the chat closes an open conversation for the list), and
