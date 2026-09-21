@@ -18,18 +18,22 @@ Both are known and neither is a reason to write a second client.
 
 ## What a phone adds
 
+This table said "unbuilt" against four things the phone visibly does, for
+weeks after they started working. Each row now says what was seen and where,
+so a row nobody has checked reads differently from one somebody has.
+
 | Need | Where | Status |
 |---|---|---|
-| Be woken when asleep (SIP-45) | `WakeReceiver.kt` → `WakeService.kt` → `Native.wake` → `sigil_phone::window` | window proven on a desktop; JNI unbuilt |
+| Be woken when asleep (SIP-45) | `WakeReceiver.kt` → `WakeService.kt` → `Native.wake` → `sigil_phone::window` | window proven on a desktop; the JNI is built and exported; **no wake has ever arrived**, for want of a distributor (below) |
 | The window's order: connect, register, catch up, write, *then* say (SIP-47) | `sigil_phone::window::run`, `Outcome::steps` | proven against a real exchange |
 | Catch up in one round trip (SIP-52) | `sqexd::catchup`, `Chat::catchup`, `sigil_chat::session::catch_up` | proven; byte-equal to `fetch`/`key/get` |
-| Notifications from plaintext, under a setting | `sigil_phone::notify`, `Notifier.kt` | composition proven; posting unbuilt |
-| A ring on a locked screen | `Notifier.ring` with a full-screen intent | unbuilt |
+| Notifications from plaintext, under a setting | `sigil_phone::notify`, `Notifier.kt` | **posting works on the device** (2026-09-19); the Phone tab reports the permission as granted |
+| A ring on a locked screen | `Notifier.ring` with a full-screen intent | **works on the device** (2026-09-19): it names the caller, Answer answers, and it is withdrawn when the call goes |
 | Pairing, both halves | desktop: `sqx-pair:` in Chat › Devices; phone: `Cmd::ClaimAccount`, `Chat::claim_listed` | compiled; claim untested end to end |
-| The device key in the key store | `identity::ensure` + `Vault.kt` | vault seam proven with fakes; Keystore unbuilt |
-| A distributor the person chooses | UnifiedPush connector; embedded FCM distributor as fallback | wired in Gradle; unbuilt |
-| A call with the microphone open, visibly | `CallService.kt` | **written, not started by anything**: the shell exposes no call-began hook yet |
-| Files to attach, from the storage framework | `sigil_chat::files::Chooser` → `Files.kt` | seam proven on desktop; Android arm unbuilt |
+| The device key in the key store | `identity::ensure` + `Vault.kt` | **works on the device**: the app opens its own identity, and the Phone tab reports the key store as present |
+| A distributor the person chooses | UnifiedPush connector; embedded FCM distributor as fallback | **still nothing**: none installed, and the embedded bridge has no gateway, so it no longer offers itself as one |
+| A call with the microphone open, visibly | `CallService.kt` | **written, not started by anything**: `begin`/`end` exist and are preloaded by the bridge, the service is in the manifest, and no Rust calls them -- `Notify` has no call-began hook |
+| Files to attach, from the storage framework | `sigil_chat::files::Chooser` → `Files.kt` | **works on the device** (2026-09-19), once the picker was started from the main thread |
 | Saving a file | app's Downloads directory, no dialog | v1 |
 | `sigil://` links | `MainActivity` → `Native.link` | logged, not yet confirmed and acted on |
 | Self-update | none: the store or the APK | by design |
