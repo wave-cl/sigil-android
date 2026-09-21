@@ -96,7 +96,7 @@ fn every_character_in_a_string_literal_is_in_the_font() {
         .parent()
         .expect("crates/sigil-android has a parent");
     let mut files = Vec::new();
-    sources(&root, &mut files);
+    sources(root, &mut files);
     assert!(
         files.len() > 3,
         "only {} source files found under {}: the scan is pointed at the wrong \
@@ -189,7 +189,7 @@ fn nothing_the_app_says_has_a_hole_in_it() {
         .parent()
         .expect("crates/sigil-android has a parent");
     let mut files = Vec::new();
-    sources(&root, &mut files);
+    sources(root, &mut files);
     assert!(
         files.len() > 3,
         "only {} source files found: the scan is pointed at the wrong place",

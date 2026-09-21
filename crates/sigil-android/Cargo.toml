@@ -44,3 +44,7 @@ android_log-sys = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
+# Without `wgpu` or `snapshot`: the phone's panes are checked by reading the
+# accessibility tree's geometry, which needs no renderer, and the renderer's
+# dependency tree is most of a build.
+egui_kittest = { version = "0.36", default-features = false }
