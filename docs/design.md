@@ -32,7 +32,7 @@ so a row nobody has checked reads differently from one somebody has.
 | Pairing, both halves | desktop: `sqx-pair:` in Chat › Devices; phone: `Cmd::ClaimAccount`, `Chat::claim_listed` | compiled; claim untested end to end |
 | The device key in the key store | `identity::ensure` + `Vault.kt` | **works on the device**: the app opens its own identity, and the Phone tab reports the key store as present |
 | A distributor the person chooses | UnifiedPush connector; embedded FCM distributor as fallback | **still nothing**: none installed, and the embedded bridge has no gateway, so it no longer offers itself as one |
-| A call with the microphone open, visibly | `CallService.kt` | **written, not started by anything**: `begin`/`end` exist and are preloaded by the bridge, the service is in the manifest, and no Rust calls them -- `Notify` has no call-began hook |
+| A call with the microphone open, visibly | `CallService.kt`, `Notify::calling` | **wired**: sigil's `Notify` gained a call-began hook, the chat app says so on change, and the Android arm starts and stops the service. Tested on a desktop through `update`; **not yet seen on the phone** |
 | Files to attach, from the storage framework | `sigil_chat::files::Chooser` → `Files.kt` | **works on the device** (2026-09-19), once the picker was started from the main thread |
 | Saving a file | app's Downloads directory, no dialog | v1 |
 | `sigil://` links | `MainActivity` → `Native.link` | logged, not yet confirmed and acted on |
