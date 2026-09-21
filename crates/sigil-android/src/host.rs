@@ -143,7 +143,9 @@ mod tests {
         let mut accounts = sigil::Accounts::of(Vec::new());
         let i = accounts.use_path(at.identity.clone());
         assert!(accounts.unlock(i, &opened.passphrase));
-        assert!(accounts.add_exchange(i, "trunk.exchange"));
+        // Directly, not through a home: SIP-85's `via` is the third
+        // argument, and the phone's roster is the plain case.
+        assert!(accounts.add_exchange(i, "trunk.exchange", None));
         // What the shell would write is what the identity's row now says;
         // the file itself is the real one and is not touched by a test. The
         // empty name first is the default exchange, always present.
