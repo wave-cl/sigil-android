@@ -211,8 +211,17 @@ pub extern "system" fn Java_org_squic_sigil_Native_pressed(
     });
 }
 
-/// `Native.link(url)`: a `sigil://` link, offered. Logged for now; the
-/// shell's confirmation for links is the desktop's next step and this one's.
+/// `Native.link(url)`: a `sigil://` link, **offered**.
+///
+/// Queued for the interface, which asks about it and waits: a link is a thing
+/// somebody else wrote and put where you would press it, and the most
+/// dangerous one is the least dramatic -- `sigil://room/<secret>` names a
+/// room whose membership is holding the secret, and nobody can be removed
+/// from one. Nothing here acts; see `sigil::deeplink`.
+///
+/// It was logged and dropped, which is not the same thing at all: a link
+/// tapped on this phone opened sigil and then did nothing, with the reason
+/// visible only in logcat.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_org_squic_sigil_Native_link(
     mut env: JNIEnv,
@@ -220,7 +229,7 @@ pub extern "system" fn Java_org_squic_sigil_Native_link(
     url: JString,
 ) {
     let url = bridge::string_from(&mut env, &url);
-    match sigil_platform::deeplink::parse(&url) {
+    match sigil_platform::deeplink::offer(&url) {
         Ok(link) => tracing::info!(
             "offered a link, awaiting confirmation: {}",
             sigil_platform::deeplink::confirmation(&link)

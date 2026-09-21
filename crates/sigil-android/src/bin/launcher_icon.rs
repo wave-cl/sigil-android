@@ -12,8 +12,11 @@
 
 use std::path::PathBuf;
 
-/// Base58 of thirty-two 0x01 bytes, as the app names a key.
-const ALL_ONES: &str = "4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4P3bkLKi";
+/// Base58 of thirty-two 0x01 bytes, as the app names a key. From
+/// `sigil-ui`, which draws the same mark on the phone's welcome screen: two
+/// copies of a constant that has to match a committed picture is one too
+/// many.
+use sigil_ui::MARK_KEY as ALL_ONES;
 
 /// Launcher icon sizes, in pixels, by density bucket.
 const DENSITIES: [(&str, usize); 5] = [

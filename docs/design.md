@@ -35,7 +35,7 @@ so a row nobody has checked reads differently from one somebody has.
 | A call with the microphone open, visibly | `CallService.kt`, `Notify::calling` | **wired**: sigil's `Notify` gained a call-began hook, the chat app says so on change, and the Android arm starts and stops the service. Tested on a desktop through `update`; **not yet seen on the phone** |
 | Files to attach, from the storage framework | `sigil_chat::files::Chooser` → `Files.kt` | **works on the device** (2026-09-19), once the picker was started from the main thread |
 | Saving a file | app's Downloads directory, no dialog | v1 |
-| `sigil://` links | `MainActivity` → `Native.link` | logged, not yet confirmed and acted on |
+| `sigil://` links | `MainActivity` → `Native.link` → `sigil_platform::deeplink::offer` → the shell's question | **offered and acted on**: the shell asks (`deeplink::confirmation`), and on yes the Calls app calls or joins the room and Chat opens the contact. Nothing happens on no, or on pressing away from it |
 | Self-update | none: the store or the APK | by design |
 | Tray, global shortcuts, start at login, launcher badge | `sigil-platform` Android arms | report absent, with why |
 
