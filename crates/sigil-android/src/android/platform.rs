@@ -167,9 +167,7 @@ impl Notify for AndroidNotifier {
             // the ring's title threw the caller away and put a fixed phrase
             // where their name belongs, which is why a ring on this phone
             // never said who was calling.
-            (Sound::Ring, Some(channel)) => {
-                post_ring(&identity, &exchange, &channel, notice.body)
-            }
+            (Sound::Ring, Some(channel)) => post_ring(&identity, &exchange, &channel, notice.body),
             _ => post_message(
                 &identity,
                 &exchange,
