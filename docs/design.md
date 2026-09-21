@@ -29,7 +29,7 @@ so a row nobody has checked reads differently from one somebody has.
 | Catch up in one round trip (SIP-52) | `sqexd::catchup`, `Chat::catchup`, `sigil_chat::session::catch_up` | proven; byte-equal to `fetch`/`key/get` |
 | Notifications from plaintext, under a setting | `sigil_phone::notify`, `Notifier.kt` | **posting works on the device** (2026-09-19); the Phone tab reports the permission as granted |
 | A ring on a locked screen | `Notifier.ring` with a full-screen intent | **works on the device** (2026-09-19): it names the caller, Answer answers, and it is withdrawn when the call goes |
-| Pairing, both halves | desktop: `sqx-pair:` in Chat › Devices; phone: `Cmd::ClaimAccount`, `Chat::claim_listed` | compiled; claim untested end to end |
+| Pairing, both halves | desktop: `sqx-pair:` in Chat › Devices; phone: `Cmd::ClaimAccount`, `Chat::claim_listed` | the credential half works end to end; **the claim half has no producer** -- see below |
 | The device key in the key store | `identity::ensure` + `Vault.kt` | **works on the device**: the app opens its own identity, and the Phone tab reports the key store as present |
 | A distributor the person chooses | UnifiedPush connector; embedded FCM distributor as fallback | **still nothing**: none installed, and the embedded bridge has no gateway, so it no longer offers itself as one |
 | A call with the microphone open, visibly | `CallService.kt`, `Notify::calling` | **wired**: sigil's `Notify` gained a call-began hook, the chat app says so on change, and the Android arm starts and stops the service. Tested on a desktop through `update`; **not yet seen on the phone** |
@@ -75,8 +75,22 @@ Not proven, and said so:
   working on a OnePlus NE2213 on Android 16: the app connects to
   trunk.exchange, the app bar starts under the status bar, the composer rises
   above the keyboard, a long press opens a message's menu.)
-- the pairing claim end to end (it is compiled; the test that registers a
-  phone from a desktop session and claims it is the next one to write);
+- the pairing claim end to end -- and now it is known *why*. The exchange
+  supports it: `/device/register` takes a posting from "the delegate itself,
+  or an already-registered device of the same account". Nothing posts the
+  second kind. `register_self` is the only caller anywhere -- in sigil and in
+  `sqex-chat`'s CLI both -- and it registers the *caller*, so a sibling is
+  never registered and `claim_listed` never finds itself in the list. The
+  claim can only succeed for a device that has already registered, which by
+  then does not need to claim.
+
+  What that costs the phone: the pairing somebody would expect -- show the
+  key, scan the `sqx-pair:`, done -- cannot complete, and the way that does
+  work is carrying a base58 credential across by hand. The refusal is at
+  least honest: it names the account and says it has not registered this
+  device. `a_device_that_was_never_registered_cannot_claim_the_account` in
+  sigil's `chat_session` records the whole of it and goes green the day
+  something registers the sibling;
 - a wake window's cost on a cellular radio, as opposed to on loopback.
 
 ## Layout on a phone
