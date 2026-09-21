@@ -222,6 +222,31 @@ impl App for PhoneApp {
 /// drawn; erring large only costs the track a few points.
 const VALUE_BOX: f32 = 90.0;
 
+/// The desktop's capability rows and the phone's own, as one list.
+///
+/// # Why anything has to be dropped
+///
+/// The two lists overlap on Notifications, and they disagree by
+/// construction: the desktop's row reports *unavailable* on Android and
+/// gives as its reason "the phone posts its own notifications" -- which is a
+/// sentence pointing at the row below it. So the pane showed the same name
+/// twice, adjacent, one hollow and one filled, and somebody opening it to
+/// find out whether notifications work read the wrong one first.
+///
+/// A row of the phone's own always wins, by name, because the phone is the
+/// thing being asked about. Kept here rather than in `android/entry.rs`
+/// because that module is `cfg(target_os = "android")` and nothing in it can
+/// be tested on the machine this is written on.
+pub fn merged(platform: Vec<Capability>, phone: Vec<Capability>) -> Vec<Capability> {
+    let named: Vec<&'static str> = phone.iter().map(|c| c.name).collect();
+    let mut out: Vec<Capability> = platform
+        .into_iter()
+        .filter(|c| !named.contains(&c.name))
+        .collect();
+    out.extend(phone);
+    out
+}
+
 /// An endpoint, shortened for a row: its host, and the tail of its path.
 fn brief(url: &str) -> String {
     let rest = url.split("://").nth(1).unwrap_or(url);
@@ -244,6 +269,45 @@ fn brief(url: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sigil_platform::Support;
+
+    /// The pane does not list one capability twice under one name.
+    ///
+    /// It did: the desktop's Notifications row said "unavailable -- the
+    /// phone posts its own notifications", which is a sentence about the row
+    /// underneath it, and the two sat together with opposite marks.
+    #[test]
+    fn a_capability_the_phone_answers_for_itself_is_not_listed_twice() {
+        let desktop = vec![
+            Capability::new(
+                "Notifications",
+                "the desktop's answer",
+                Support::no("not here"),
+            ),
+            Capability::new("Tray icon", "a tray", Support::no("no tray on a phone")),
+        ];
+        let phone = vec![
+            Capability::new("Notifications", "the phone's answer", Support::Yes),
+            Capability::new("Being woken", "SIP-45", Support::no("no distributor")),
+        ];
+        let rows = merged(desktop, phone);
+        let names: Vec<&str> = rows.iter().map(|c| c.name).collect();
+        assert_eq!(
+            names.iter().filter(|n| **n == "Notifications").count(),
+            1,
+            "Notifications is listed twice: {names:?}"
+        );
+        assert!(
+            rows.iter()
+                .any(|c| c.name == "Notifications" && c.support.is_yes()),
+            "the row that survived is the desktop's, which is the one that \
+             does not know: {names:?}"
+        );
+        assert!(
+            names.contains(&"Tray icon") && names.contains(&"Being woken"),
+            "a row only one list has must still be there: {names:?}"
+        );
+    }
 
     #[test]
     fn an_endpoint_is_shown_as_its_host_and_a_tail() {

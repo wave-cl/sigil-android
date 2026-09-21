@@ -77,13 +77,25 @@ pub fn install_logging() {
     }));
 }
 
+/// What both lists call the same thing, so the duplicate can be found by
+/// name rather than by position.
+const NOTIFICATIONS: &str = "Notifications";
+
 /// The capability list the Phone tab shows: the desktop's rows, every one
 /// of them absent here with its reason, and the phone's own.
+///
+/// **Except where the two are the same question.** The desktop's list has a
+/// Notifications row, which on Android reports *unavailable* and gives as its
+/// reason "the phone posts its own notifications" -- pointing at the row
+/// below it, which reports the real answer. So the pane showed
+/// "Notifications" twice, adjacent, one hollow and one filled, and somebody
+/// opening it to find out whether notifications work read the wrong one
+/// first. The platform's row is dropped and the phone's is the answer.
 pub fn capabilities(report: &PhoneReport) -> Vec<Capability> {
     let platform = sigil_platform::Platform::new();
-    let mut rows = platform.capabilities();
+    let mut rows: Vec<Capability> = Vec::new();
     rows.push(Capability::new(
-        "Notifications",
+        NOTIFICATIONS,
         "says what arrived while sigil was not in front, and rings",
         match report.notifications {
             Some(true) => Support::Yes,
@@ -102,7 +114,10 @@ pub fn capabilities(report: &PhoneReport) -> Vec<Capability> {
             }
         },
     ));
-    rows
+    // Through `merged`, so the rule about an overlapping name is the one
+    // with a test on it: this module is `cfg(target_os = "android")` and
+    // nothing in it can be run on the machine it is written on.
+    crate::phone_app::merged(platform.capabilities(), rows)
 }
 
 #[unsafe(no_mangle)]
