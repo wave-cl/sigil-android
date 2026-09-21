@@ -136,17 +136,39 @@ impl App for PhoneApp {
                     egui::RichText::new(format!("last wake: {last}")).small(),
                 );
             }
-            ui.horizontal(|ui| {
-                ui.label("Keep the endpoint for");
-                let mut days = self.settings.endpoint_days;
-                if ui
-                    .add(egui::Slider::new(&mut days, 1..=30).suffix(" days"))
-                    .changed()
-                {
-                    self.settings.endpoint_days = days;
-                    self.save();
-                }
-            });
+            // **The label above, not beside.** On the phone this row was
+            // twenty-one characters of label, then a slider, then its value
+            // box, and the slider got what was left: about ninety points of
+            // travel for a range of thirty, which is a control you cannot
+            // land on a number with a finger. Above it, the slider has the
+            // width of the pane.
+            let mut days = self.settings.endpoint_days;
+            let wide = ui.available_width() >= tokens::NARROW_WIDTH;
+            let mut set = |ui: &mut egui::Ui| {
+                ui.add(
+                    egui::Slider::new(&mut days, 1..=30)
+                        .suffix(" days")
+                        .clamping(egui::SliderClamping::Always),
+                )
+                .changed()
+            };
+            let changed = if wide {
+                ui.horizontal(|ui| {
+                    ui.label("Keep the endpoint for");
+                    set(ui)
+                })
+                .inner
+            } else {
+                ui.colored_label(
+                    theme.text_secondary,
+                    egui::RichText::new("Keep the endpoint for").small(),
+                );
+                set(ui)
+            };
+            if changed {
+                self.settings.endpoint_days = days;
+                self.save();
+            }
 
             ui.add_space(tokens::SPACING_XL);
             ui.heading("What this phone can do");
