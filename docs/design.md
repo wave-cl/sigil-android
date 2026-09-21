@@ -139,6 +139,24 @@ held still opens a menu of them where the finger is; the picture viewer
 pans by drag and zooms by pinch. A desktop with a touchscreen gets all of
 it.
 
+**One bar, and the app bar is it.** The shell already drew a pushed view's
+name there, from `App::nav_title` -- Devices, Members, Public channels,
+Channel settings -- and each of those four drew its own Back and its own
+heading again in the pane under it. The name was on the screen twice, under
+two back arrows, on the four panes with the least room to spare. The bar
+carries the name and the way back now, as it already did for an open
+conversation, and a view's one action goes to the corner beside where the
+conversation's More is (`App::chrome_ui` is handed the history entry so a
+view can tell it is the one being drawn). The desktop keeps its own heads:
+its panes are columns with no bar over them.
+
+Nothing failed while that was wrong, and the reason is worth keeping: the
+chat tests' phone harness composed the app bar *its own way* -- the app's
+head, then the product's name -- and never asked `nav_title`. Every phone
+snapshot showed "Sigil" over a pane whose real bar says "Devices". A harness
+that builds the thing under test differently from the shell proves things
+about a screen nobody will ever see.
+
 A narrow pane also folds the conversation bar: everything but Back, the
 name and the identity goes behind one More button, the call first. Six
 controls beside the identity were wider than the row, and a right-to-left
