@@ -5912,7 +5912,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-android"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "android-activity",
  "android_log-sys",
@@ -5993,7 +5993,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-phone"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "ed25519-dalek",
  "hex",
