@@ -144,7 +144,14 @@ impl App for PhoneApp {
             // width of the pane.
             let mut days = self.settings.endpoint_days;
             let wide = ui.available_width() >= tokens::NARROW_WIDTH;
+            // **And the track itself has to be told.** Moving the label off
+            // the row gave the slider room and it did not take it: egui sizes
+            // a slider from `spacing.slider_width`, a fixed 100 points, so it
+            // stayed the same stub with more space beside it. The width is
+            // the pane less the value box that sits after it.
             let mut set = |ui: &mut egui::Ui| {
+                let room = ui.available_width() - VALUE_BOX;
+                ui.spacing_mut().slider_width = room.max(120.0);
                 ui.add(
                     egui::Slider::new(&mut days, 1..=30)
                         .suffix(" days")
@@ -208,6 +215,12 @@ impl App for PhoneApp {
         AppResponse::default()
     }
 }
+
+/// Room for the number beside a slider: "30 days" in a box, with its
+/// padding. Measured once by eye against the phone rather than derived,
+/// because egui gives no way to ask what a `DragValue` will be before it is
+/// drawn; erring large only costs the track a few points.
+const VALUE_BOX: f32 = 90.0;
 
 /// An endpoint, shortened for a row: its host, and the tail of its path.
 fn brief(url: &str) -> String {
