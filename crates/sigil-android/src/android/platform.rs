@@ -64,6 +64,26 @@ pub fn post_message(
     })
 }
 
+/// `CallService.begin(context, with)`: a foreground service for the call.
+pub fn begin_call(with: &str) -> Result<(), String> {
+    with_env(|env, context| {
+        let class = bridge::class("CallService")?;
+        let with = jstring(env, with)?;
+        env.call_static_method(
+            class,
+            "begin",
+            "(Landroid/content/Context;Ljava/lang/String;)V",
+            &[JValue::Object(context), JValue::Object(&with)],
+        )?;
+        Ok(())
+    })
+}
+
+/// `CallService.end(context)`: the call is over, let the process go.
+pub fn end_call() -> Result<(), String> {
+    bridge::call_static_with_context("CallService", "end", "(Landroid/content/Context;)V", &[])
+}
+
 /// Present a ring through `Notifier.ring`.
 /// `Notifier.endRing(context, channelHex)`: take a ring off the shade.
 pub fn end_ring(channel: &[u8; 32]) -> Result<(), String> {
@@ -191,6 +211,31 @@ impl Notify for AndroidNotifier {
     fn withdraw(&self, target: &Target) {
         if let Err(why) = end_ring(&target.channel) {
             tracing::warn!("could not take a ring down: {why}");
+        }
+    }
+
+    /// Start and stop `CallService`, which is what keeps this process alive
+    /// while a call is up.
+    ///
+    /// **Android stops an app that is not in front**, microphone or no
+    /// microphone, unless a foreground service says otherwise -- so without
+    /// this a call ends when the screen does. The service was written for
+    /// exactly this and nothing had ever started it, because `Notify` had no
+    /// call-began hook for it to be started from.
+    ///
+    /// Called on change, never on the clock: the caller compares a call being
+    /// up against what it last said, so this does not start a foreground
+    /// service sixty times a second.
+    fn calling(&self, with: Option<&str>) {
+        let result = match with {
+            Some(who) => begin_call(who),
+            None => end_call(),
+        };
+        if let Err(why) = result {
+            // Logged, not silent: a call that the platform does not know
+            // about is a call the system may stop, and the only sign would
+            // be a call ending for no reason anybody can see.
+            tracing::warn!("could not tell the platform about a call: {why}");
         }
     }
 
