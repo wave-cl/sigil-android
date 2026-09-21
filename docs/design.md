@@ -90,7 +90,17 @@ Not proven, and said so:
   least honest: it names the account and says it has not registered this
   device. `a_device_that_was_never_registered_cannot_claim_the_account` in
   sigil's `chat_session` records the whole of it and goes green the day
-  something registers the sibling;
+  something registers the sibling.
+
+  Two ways out were looked for and neither is one. `/device/account`
+  (SIP-44) answers a device whose account it is, but `account_for` falls
+  back to the device's own key when the registry has never heard of it, so
+  an unpaired phone is told it is its own account -- which is what it
+  already believed. And sigil cannot post the sibling's registration
+  itself: `sqex-chat`'s `post` is private and `post_raw` is
+  `pub(crate)`, so the only way in is a `register_sibling` on the client
+  beside `register_self`, which is a change to a crate this repo pins by
+  tag. The gap is sqex's to close, not the phone's;
 - a wake window's cost on a cellular radio, as opposed to on loopback.
 
 ## Layout on a phone
