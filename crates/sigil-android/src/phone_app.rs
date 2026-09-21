@@ -152,12 +152,23 @@ impl App for PhoneApp {
             ui.heading("What this phone can do");
             for c in &self.capabilities {
                 ui.horizontal(|ui| {
-                    let (mark, colour) = if c.support.is_yes() {
-                        ("●", theme.accent)
-                    } else {
-                        ("○", theme.text_muted)
-                    };
-                    ui.colored_label(colour, mark);
+                    // **Painted, not written.** These were `●` and `○`, and
+                    // `●` is not in egui's bundled font: every capability
+                    // this phone actually *has* drew as a tofu box, so the
+                    // one state somebody opens this pane to confirm read as
+                    // a rendering fault. `sigil_ui::dot` exists for exactly
+                    // this -- its own comment records `●`/`○` doing it once
+                    // before -- and it carries the word, which a shape
+                    // cannot.
+                    let yes = c.support.is_yes();
+                    sigil_ui::dot(
+                        ui,
+                        yes,
+                        theme.accent,
+                        theme.text_muted,
+                        if yes { "yes" } else { "no" },
+                    );
+                    ui.add_space(tokens::SPACING_XS);
                     ui.vertical(|ui| {
                         ui.label(c.name);
                         ui.colored_label(theme.text_secondary, egui::RichText::new(c.what).small());
