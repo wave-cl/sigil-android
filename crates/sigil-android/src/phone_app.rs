@@ -67,8 +67,8 @@ impl App for PhoneApp {
                     let shown = sigil_phone::pairing::device_string(&unlocked.me());
                     ui.colored_label(
                         theme.text_secondary,
-                        "This phone's key. Show it to a device that holds your account -- \
-                         its Chat › Devices pane reads it -- and it will register this \
+                        "This phone's key. Show it to a device that holds your account — \
+                         its Chat › Devices pane reads it — and it will register this \
                          phone and show you where to go.",
                     );
                     ui.add_space(tokens::SPACING_SM);
@@ -91,7 +91,7 @@ impl App for PhoneApp {
                         egui::Label::new(egui::RichText::new(key).monospace().small())
                             .selectable(true),
                     );
-                    if ui.button("Copy").clicked() {
+                    if sigil_ui::icon_button_named(ui, sigil_ui::Icon::Copy, "Copy").clicked() {
                         ui.ctx().copy_text(shown);
                     }
                 }
@@ -169,42 +169,39 @@ impl App for PhoneApp {
                     egui::RichText::new(format!("last wake: {last}")).small(),
                 );
             }
-            // **The label above, not beside.** On the phone this row was
-            // twenty-one characters of label, then a slider, then its value
-            // box, and the slider got what was left: about ninety points of
-            // travel for a range of thirty, which is a control you cannot
-            // land on a number with a finger. Above it, the slider has the
-            // width of the pane.
+            // **Three choices, not a slider.** This was a 1..=30 slider with
+            // a value box, and on the phone its handle was a pill the size
+            // of a button on a track nobody could land a number on; the
+            // number itself is not one anybody chooses to the day. A day, a
+            // week or a month is the whole of the decision -- a phone that
+            // connects daily, one that does not, one left in a drawer -- so
+            // those are the choices, as words, and a value set some other
+            // way is shown as a fourth so it is never silently lost.
             let mut days = self.settings.endpoint_days;
-            let wide = ui.available_width() >= tokens::NARROW_WIDTH;
-            // **And the track itself has to be told.** Moving the label off
-            // the row gave the slider room and it did not take it: egui sizes
-            // a slider from `spacing.slider_width`, a fixed 100 points, so it
-            // stayed the same stub with more space beside it. The width is
-            // the pane less the value box that sits after it.
-            let mut set = |ui: &mut egui::Ui| {
-                let room = ui.available_width() - VALUE_BOX;
-                ui.spacing_mut().slider_width = room.max(120.0);
-                ui.add(
-                    egui::Slider::new(&mut days, 1..=30)
-                        .suffix(" days")
-                        .clamping(egui::SliderClamping::Always),
-                )
-                .changed()
-            };
-            let changed = if wide {
-                ui.horizontal(|ui| {
-                    ui.label("Keep the endpoint for");
-                    set(ui)
+            ui.colored_label(
+                theme.text_secondary,
+                egui::RichText::new("Keep the endpoint for").small(),
+            );
+            let mut choices: Vec<(String, u32)> = vec![
+                ("a day".into(), 1),
+                ("a week".into(), 7),
+                ("a month".into(), 30),
+            ];
+            if !choices.iter().any(|(_, n)| *n == days) {
+                choices.push((format!("{days} days"), days));
+            }
+            let changed = ui
+                .horizontal_wrapped(|ui| {
+                    let mut changed = false;
+                    for (word, n) in &choices {
+                        if ui.selectable_label(days == *n, word).clicked() && days != *n {
+                            days = *n;
+                            changed = true;
+                        }
+                    }
+                    changed
                 })
-                .inner
-            } else {
-                ui.colored_label(
-                    theme.text_secondary,
-                    egui::RichText::new("Keep the endpoint for").small(),
-                );
-                set(ui)
-            };
+                .inner;
             if changed {
                 self.settings.endpoint_days = days;
                 self.save();
@@ -259,12 +256,6 @@ const NTFY: &str = "https://play.google.com/store/apps/details?id=io.heckel.ntfy
 /// And the list of the others, because which distributor to run is the
 /// person's choice and naming one is not the same as choosing for them.
 const UNIFIEDPUSH: &str = "https://unifiedpush.org/users/distributors/";
-
-/// Room for the number beside a slider: "30 days" in a box, with its
-/// padding. Measured once by eye against the phone rather than derived,
-/// because egui gives no way to ask what a `DragValue` will be before it is
-/// drawn; erring large only costs the track a few points.
-const VALUE_BOX: f32 = 90.0;
 
 /// The desktop's capability rows and the phone's own, as one list.
 ///

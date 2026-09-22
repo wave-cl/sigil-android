@@ -246,6 +246,40 @@ fn nothing_the_app_says_has_a_hole_in_it() {
     );
 }
 
+/// A typewriter dash in a sentence the phone says.
+///
+/// The same scan sigil runs over its own crates: comments write `--`, prose
+/// the app draws writes `—`, and the Phone tab had two of the former beside
+/// paragraphs of the latter when it was looked at on the device.
+#[test]
+fn nothing_the_phone_says_has_a_typewriter_dash_in_it() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crates/sigil-android has a parent");
+    let mut files = Vec::new();
+    sources(root, &mut files);
+    let mut dashes: Vec<String> = Vec::new();
+    let mut literals = 0usize;
+    for file in &files {
+        let Ok(source) = std::fs::read_to_string(file) else {
+            continue;
+        };
+        for (line, text) in strings(&source) {
+            literals += 1;
+            if text.contains(" -- ") {
+                dashes.push(format!("{}:{line}: \"{text}\"", file.display()));
+            }
+        }
+    }
+    assert!(literals > 50, "only {literals} string literals were found");
+    assert!(
+        dashes.is_empty(),
+        "{} sentence(s) are drawn with a typewriter dash; the font has an em dash:\n{}",
+        dashes.len(),
+        dashes.join("\n")
+    );
+}
+
 /// A run of `least` or more spaces with a word character on both sides, if
 /// there is one, and how long it is.
 ///
