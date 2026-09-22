@@ -32,6 +32,26 @@ pub struct PhoneReport {
 
 pub type Shared = Arc<Mutex<PhoneReport>>;
 
+/// The one notifier, boxed for the shell as well as shared with the chat
+/// app: the shell's `with_notify` takes a box, and the phone has one
+/// notifier.
+struct Also(Arc<dyn Notify + Send + Sync>);
+
+impl Notify for Also {
+    fn notice(&self, notice: sigil::app::Notice<'_>) -> bool {
+        self.0.notice(notice)
+    }
+    fn pressed(&self) -> Vec<sigil::app::Target> {
+        self.0.pressed()
+    }
+    fn withdraw(&self, target: &sigil::app::Target) {
+        self.0.withdraw(target)
+    }
+    fn calling(&self, with: Option<&str>) {
+        self.0.calling(with)
+    }
+}
+
 /// Where sigil keeps its own state: `$XDG_DATA_HOME/sigil`, which the
 /// Android entry points inside the app's files directory.
 pub fn data_dir() -> PathBuf {
@@ -59,7 +79,7 @@ impl Host {
     pub fn build(
         home: &Path,
         vault: &dyn Vault,
-        notify: Box<dyn Notify>,
+        notify: std::sync::Arc<dyn Notify + Send + Sync>,
         capabilities: Vec<Capability>,
         report: Shared,
         remember: bool,
@@ -92,8 +112,13 @@ impl Host {
                 Support::Yes
             },
         ));
+        // **The chat app is given the notifier twice over**: once through the
+        // shell, for what a frame says, and once of its own, for what has to
+        // be said when no frame is coming -- which on a phone is whenever it
+        // is not in front. A ring that arrived then reached the session and
+        // was said to nobody; see `sigil_chat::announce`.
         let apps: Vec<Box<dyn App>> = vec![
-            Box::new(sigil_chat::ChatApp::new()),
+            Box::new(sigil_chat::ChatApp::new().with_off_frame_notify(notify.clone())),
             Box::new(sigil_admin::AdminApp::new()),
             Box::new(PhoneApp::new(
                 settings,
@@ -103,7 +128,7 @@ impl Host {
             )),
         ];
         let shell = Shell::new(apps, None)
-            .with_notify(notify)
+            .with_notify(Box::new(Also(notify)))
             .with_roster(accounts, remember);
         Ok(Host { shell, report })
     }
@@ -122,7 +147,7 @@ mod tests {
         let host = Host::build(
             dir.path(),
             &Unsealed,
-            Box::new(sigil::Silent),
+            std::sync::Arc::new(sigil::Silent),
             Vec::new(),
             Shared::default(),
             false,

@@ -159,7 +159,7 @@ pub fn android_main(app: android_activity::AndroidApp) {
     let host = match Host::build(
         &files_dir,
         &AndroidVault,
-        Box::new(AndroidNotifier::new()),
+        std::sync::Arc::new(AndroidNotifier::new()),
         capabilities,
         report,
         // The roster is written as it changes: an exchange added here is
