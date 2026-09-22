@@ -29,7 +29,7 @@ so a row nobody has checked reads differently from one somebody has.
 | Catch up in one round trip (SIP-52) | `sqexd::catchup`, `Chat::catchup`, `sigil_chat::session::catch_up` | proven; byte-equal to `fetch`/`key/get` |
 | Notifications from plaintext, under a setting | `sigil_phone::notify`, `Notifier.kt` | **posting works on the device** (2026-09-19); the Phone tab reports the permission as granted |
 | A ring on a locked screen | `Notifier.ring` with a full-screen intent | **works on the device** (2026-09-19): it names the caller, Answer answers, and it is withdrawn when the call goes |
-| Pairing, both halves | desktop: `sqx-pair:` in Chat › Devices; phone: `Cmd::ClaimAccount`, `Chat::claim_listed` | the credential half works end to end; **the claim half has no producer** -- see below |
+| Pairing, both halves | desktop: `sqx-pair:` in Chat › Devices, `Cmd::LinkDevice` (writes the credential **and registers the phone**, `Chat::register_device`, sqex 0.104.2); phone: `Cmd::ClaimAccount`, `Chat::claim_listed` | **both halves work, end to end in a test** (2026-09-22): the phone, told only where to go, finds itself listed and takes the account. Not yet seen on the phone |
 | The device key in the key store | `identity::ensure` + `Vault.kt` | **works on the device**: the app opens its own identity, and the Phone tab reports the key store as present |
 | A distributor the person chooses | UnifiedPush connector; embedded FCM distributor as fallback | **still nothing installed** -- but the Phone tab now says what a distributor is and offers two links to get one, where before it named ntfy in prose and stopped. The embedded bridge has no gateway, so it no longer offers itself as one |
 | A call with the microphone open, visibly | `CallService.kt`, `Notify::calling` | **wired**: sigil's `Notify` gained a call-began hook, the chat app says so on change, and the Android arm starts and stops the service. Tested on a desktop through `update`; **not yet seen on the phone** |
@@ -77,32 +77,18 @@ Not proven, and said so:
   working on a OnePlus NE2213 on Android 16: the app connects to
   trunk.exchange, the app bar starts under the status bar, the composer rises
   above the keyboard, a long press opens a message's menu.)
-- the pairing claim end to end -- and now it is known *why*. The exchange
-  supports it: `/device/register` takes a posting from "the delegate itself,
-  or an already-registered device of the same account". Nothing posts the
-  second kind. `register_self` is the only caller anywhere -- in sigil and in
-  `sqex-chat`'s CLI both -- and it registers the *caller*, so a sibling is
-  never registered and `claim_listed` never finds itself in the list. The
-  claim can only succeed for a device that has already registered, which by
-  then does not need to claim.
-
-  What that costs the phone: the pairing somebody would expect -- show the
-  key, scan the `sqx-pair:`, done -- cannot complete, and the way that does
-  work is carrying a base58 credential across by hand. The refusal is at
-  least honest: it names the account and says it has not registered this
-  device. `a_device_that_was_never_registered_cannot_claim_the_account` in
-  sigil's `chat_session` records the whole of it and goes green the day
-  something registers the sibling.
-
-  Two ways out were looked for and neither is one. `/device/account`
-  (SIP-44) answers a device whose account it is, but `account_for` falls
-  back to the device's own key when the registry has never heard of it, so
-  an unpaired phone is told it is its own account -- which is what it
-  already believed. And sigil cannot post the sibling's registration
-  itself: `sqex-chat`'s `post` is private and `post_raw` is
-  `pub(crate)`, so the only way in is a `register_sibling` on the client
-  beside `register_self`, which is a change to a crate this repo pins by
-  tag. The gap is sqex's to close, not the phone's;
+- the pairing claim on the actual phone. It was unprovable for a reason
+  that is worth keeping: the exchange took `/device/register` from "the
+  delegate itself, or an already-registered device of the same account",
+  and the client had one method, `register_self`, which is the first kind.
+  Nothing anywhere posted the second, so a phone that showed its key and was
+  named by a desktop was never in the account's list, and its claim could
+  only succeed for a device that had already registered -- which by then did
+  not need to claim. `Chat::register_device` (sqex 0.104.2) is the second
+  kind, `LinkDevice` calls it after writing the credential, and
+  `a_device_named_by_its_sibling_claims_the_account_by_name_alone` in
+  sigil's `chat_session` is the whole of it, with the refusal as its control.
+  Scanning the QR on the desktop is still a paste: the QR is drawn, not read;
 - a wake window's cost on a cellular radio, as opposed to on loopback.
 
 ## Layout on a phone
