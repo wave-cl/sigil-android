@@ -381,6 +381,14 @@ fn staying_reachable_is_offered_without_a_distributor_and_told_to_the_platform()
         "the pane does not say what it is doing: {}",
         text_of(&h)
     );
+    // And the warning that nothing arrives while sigil is not in front is
+    // withdrawn, since it is no longer true.
+    assert!(
+        !text_of(&h).contains("hears nothing while it is not in front"),
+        "the warning stands while the phone is reachable: {}",
+        text_of(&h)
+    );
+    assert!(text_of(&h).contains("stays running instead"));
 
     // At launch, a phone that chose it is told again, through with_reach.
     let told = std::rc::Rc::new(std::cell::RefCell::new(Vec::<bool>::new()));

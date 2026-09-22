@@ -156,12 +156,22 @@ impl App for PhoneApp {
                     ui.label(format!("Distributor: {d}, no endpoint yet"));
                 }
                 (None, _) => {
-                    ui.colored_label(
-                        theme.destructive,
-                        "No push distributor. Until there is one, sigil hears nothing \
-                         while it is not in front: a message waits until the app is \
-                         opened.",
-                    );
+                    // Red only while it is true: with the phone staying
+                    // reachable there is no distributor and nothing waits.
+                    if self.settings.stay_reachable {
+                        ui.colored_label(
+                            theme.text_secondary,
+                            "No push distributor. sigil stays running instead, so nothing \
+                             waits for the app to be opened.",
+                        );
+                    } else {
+                        ui.colored_label(
+                            theme.destructive,
+                            "No push distributor. Until there is one, sigil hears nothing \
+                             while it is not in front: a message waits until the app is \
+                             opened.",
+                        );
+                    }
                     ui.colored_label(
                         theme.text_secondary,
                         "A distributor is a separate app, chosen by you, that holds the \
