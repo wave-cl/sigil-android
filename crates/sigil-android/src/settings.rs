@@ -17,6 +17,12 @@ pub struct Settings {
     /// it at 30; a phone that connects daily could ask for less, and one
     /// left in a drawer wants all of it.
     pub endpoint_days: u32,
+    /// Keep the process alive with its connection open when sigil is not
+    /// in front, so calls and messages arrive without a push distributor.
+    /// A foreground service with a quiet notice, and the battery pays; off
+    /// unless chosen. Absent from a file written before it existed.
+    #[serde(default)]
+    pub stay_reachable: bool,
 }
 
 /// [`Privacy`], with a serde derive it does not carry itself.
@@ -54,6 +60,7 @@ impl Default for Settings {
         Settings {
             privacy: PrivacySetting::default(),
             endpoint_days: 30,
+            stay_reachable: false,
         }
     }
 }
@@ -97,11 +104,17 @@ mod tests {
         let mine = Settings {
             privacy: PrivacySetting::FactOnly,
             endpoint_days: 7,
+            stay_reachable: true,
         };
         mine.save(&path).unwrap();
         assert_eq!(Settings::load(&path), mine);
         assert_eq!(Privacy::from(mine.privacy), Privacy::FactOnly);
         std::fs::write(&path, b"{not json").unwrap();
         assert_eq!(Settings::load(&path), Settings::default());
+        // A file from before `stay_reachable` existed reads as not chosen.
+        std::fs::write(&path, br#"{"privacy":"sender_only","endpoint_days":7}"#).unwrap();
+        let older = Settings::load(&path);
+        assert_eq!(older.privacy, PrivacySetting::SenderOnly);
+        assert!(!older.stay_reachable);
     }
 }

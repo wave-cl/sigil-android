@@ -165,6 +165,7 @@ pub fn android_main(app: android_activity::AndroidApp) {
         // The roster is written as it changes: an exchange added here is
         // there at the next launch, and after the process is killed.
         true,
+        Box::new(super::platform::set_reach),
     ) {
         Ok(host) => host,
         Err(why) => {

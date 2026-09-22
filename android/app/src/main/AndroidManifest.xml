@@ -13,6 +13,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <!-- Staying reachable without a push distributor: a connection kept
+         open in the foreground, which is the one use `specialUse` is for
+         and the one every messenger without push declares. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
 
     <application
@@ -109,5 +113,17 @@
             android:name=".CallService"
             android:exported="false"
             android:foregroundServiceType="phoneCall|microphone" />
+
+        <!-- Reachable without a distributor: the process kept alive with
+             its connection open, by the person's choice on the Phone tab.
+             The property is what Play reads for a specialUse service. -->
+        <service
+            android:name=".ReachService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the connection to the messaging exchange open on a phone with no push distributor, so calls and messages arrive while the app is not in front." />
+        </service>
     </application>
 </manifest>

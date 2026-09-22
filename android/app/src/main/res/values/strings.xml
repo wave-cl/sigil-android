@@ -14,4 +14,6 @@
     <string name="answer">Answer</string>
     <string name="decline">Decline</string>
     <string name="hang_up">Hang up</string>
+    <string name="reachable">Reachable</string>
+    <string name="reachable_about">Sigil is keeping its connection open</string>
 </resources>

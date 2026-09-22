@@ -17,12 +17,18 @@ use sigil_platform::Capability;
 use crate::host::Shared;
 use crate::settings::{PrivacySetting, Settings};
 
+/// What keeps the process alive with its connection open, or lets it go:
+/// the platform's foreground service on the phone, nothing on a desktop
+/// where this is built and tested.
+pub type Reach = Box<dyn Fn(bool) -> Result<(), String>>;
+
 pub struct PhoneApp {
     settings: Settings,
     settings_at: PathBuf,
     capabilities: Vec<Capability>,
     report: Shared,
     trouble: Option<String>,
+    reach: Reach,
 }
 
 impl PhoneApp {
@@ -38,7 +44,21 @@ impl PhoneApp {
             capabilities,
             report,
             trouble: None,
+            reach: Box::new(|_| Ok(())),
         }
+    }
+
+    /// The platform's way of staying reachable, and the setting applied
+    /// through it now: a phone that chose this before is reachable from
+    /// launch, not from the next visit to the tab.
+    pub fn with_reach(mut self, reach: Reach) -> PhoneApp {
+        self.reach = reach;
+        if self.settings.stay_reachable
+            && let Err(why) = (self.reach)(true)
+        {
+            self.trouble = Some(why);
+        }
+        self
     }
 
     pub fn settings(&self) -> &Settings {
@@ -161,6 +181,41 @@ impl App for PhoneApp {
                         ui.add_space(tokens::SPACING_SM);
                         ui.hyperlink_to("Other distributors", UNIFIEDPUSH);
                     });
+                    // **Or stay awake.** What a messenger does on a phone
+                    // without push: the process kept alive with its
+                    // connection open, a quiet notice on the shade saying
+                    // so, and the battery paying for it. The person's
+                    // choice, and off unless chosen. Only offered where it
+                    // is the alternative -- with a distributor there is
+                    // nothing to stay awake for.
+                    ui.add_space(tokens::SPACING_SM);
+                    let mut stay = self.settings.stay_reachable;
+                    if ui
+                        .checkbox(&mut stay, "Stay reachable without one")
+                        .on_hover_text(
+                            "sigil keeps running with the screen off and its connection \
+                             open, and says so on the shade. Calls and messages arrive \
+                             as they would on a desktop. It costs battery.",
+                        )
+                        .changed()
+                    {
+                        self.settings.stay_reachable = stay;
+                        self.save();
+                        if let Err(why) = (self.reach)(stay) {
+                            self.trouble = Some(why);
+                        }
+                    }
+                    ui.colored_label(
+                        theme.text_muted,
+                        egui::RichText::new(if stay {
+                            "Running with the screen off; a quiet notice on the shade says \
+                             so. It costs battery."
+                        } else {
+                            "sigil keeps running with the screen off, and calls and \
+                             messages arrive as they would on a desktop. It costs battery."
+                        })
+                        .small(),
+                    );
                 }
             }
             if let Some(last) = &report.last_window {

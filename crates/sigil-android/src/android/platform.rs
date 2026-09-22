@@ -84,6 +84,15 @@ pub fn end_call() -> Result<(), String> {
     bridge::call_static_with_context("CallService", "end", "(Landroid/content/Context;)V", &[])
 }
 
+/// `ReachService.begin(context)` / `end(context)`: keep the process alive
+/// with its connection open, or let it go. The person's choice on the
+/// Phone tab, and what a phone with no push distributor has instead of
+/// being woken.
+pub fn set_reach(on: bool) -> Result<(), String> {
+    let method = if on { "begin" } else { "end" };
+    bridge::call_static_with_context("ReachService", method, "(Landroid/content/Context;)V", &[])
+}
+
 /// Present a ring through `Notifier.ring`.
 /// `Notifier.endRing(context, channelHex)`: take a ring off the shade.
 pub fn end_ring(channel: &[u8; 32]) -> Result<(), String> {

@@ -12,7 +12,7 @@
 //! anything drawn where a finger cannot get to it.
 
 use egui_kittest::Harness;
-use egui_kittest::kittest::NodeT;
+use egui_kittest::kittest::{NodeT, Queryable};
 use sigil::app::{App, AppContext};
 use sigil::navigator::Navigator;
 use sigil::{Account, Accounts, theme};
@@ -83,16 +83,27 @@ fn harness(capabilities: Vec<Capability>) -> Harness<'static> {
 }
 
 fn harness_reporting(capabilities: Vec<Capability>, report: Shared) -> Harness<'static> {
+    harness_reaching(capabilities, report, Box::new(|_| Ok(()))).0
+}
+
+/// The same, with the platform's "stay reachable" hook supplied, and the
+/// settings file's path handed back to be read.
+fn harness_reaching(
+    capabilities: Vec<Capability>,
+    report: Shared,
+    reach: sigil_android::phone_app::Reach,
+) -> (Harness<'static>, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("a temporary directory");
     let at = dir.path().join("settings.json");
     // Kept for the harness's life: the app writes to it when a radio button
     // is pressed, and a `TempDir` dropped here would take the directory.
     let keep = Box::leak(Box::new(dir));
     let _ = keep;
-    let app = PhoneApp::new(Settings::default(), at, capabilities, report);
+    let app =
+        PhoneApp::new(Settings::default(), at.clone(), capabilities, report).with_reach(reach);
     let app = std::rc::Rc::new(std::cell::RefCell::new(app));
     let mut accounts = Accounts::of(vec![Account::unlocked_for_test([1u8; 32])]);
-    Harness::builder()
+    let harness = Harness::builder()
         .with_size(egui::vec2(PHONE_WIDTH, PHONE_HEIGHT))
         .build_ui(move |ui| {
             let mut app = app.borrow_mut();
@@ -119,7 +130,8 @@ fn harness_reporting(capabilities: Vec<Capability>, report: Shared) -> Harness<'
                 .show(ui, |ui| {
                     let _ = app.render(&mut app_ctx, ui);
                 });
-        })
+        });
+    (harness, at)
 }
 
 /// Every widget's box, in points, with what it is called.
@@ -332,4 +344,66 @@ fn text_of(h: &Harness<'static>) -> String {
     }
     walk(h.root(), &mut found);
     found.join(" | ")
+}
+
+/// With no distributor, the tab offers to stay reachable instead; choosing
+/// it is written down and told to the platform, and at launch a phone that
+/// chose it before is told again. With a distributor there is nothing to
+/// stay awake for, and it is not offered.
+#[test]
+fn staying_reachable_is_offered_without_a_distributor_and_told_to_the_platform() {
+    let told = std::rc::Rc::new(std::cell::RefCell::new(Vec::<bool>::new()));
+    let hook = {
+        let told = told.clone();
+        Box::new(move |on: bool| {
+            told.borrow_mut().push(on);
+            Ok(())
+        })
+    };
+    let (mut h, at) = harness_reaching(capabilities(), nothing_delivering(), hook);
+    h.run();
+    h.run();
+    assert!(told.borrow().is_empty(), "nothing chosen, nothing told");
+    // On screen before it is pressed: a press on a widget scrolled out of
+    // view lands on nothing.
+    to_the_end(&mut h);
+    let choice = h.get_by_label("Stay reachable without one");
+    choice.click();
+    h.run();
+    h.run();
+    assert_eq!(*told.borrow(), vec![true], "the platform was not told");
+    assert!(
+        Settings::load(&at).stay_reachable,
+        "the choice was not written down"
+    );
+    assert!(
+        text_of(&h).contains("Running with the screen off"),
+        "the pane does not say what it is doing: {}",
+        text_of(&h)
+    );
+
+    // At launch, a phone that chose it is told again, through with_reach.
+    let told = std::rc::Rc::new(std::cell::RefCell::new(Vec::<bool>::new()));
+    let hook = {
+        let told = told.clone();
+        Box::new(move |on: bool| {
+            told.borrow_mut().push(on);
+            Ok(())
+        })
+    };
+    let mut chosen = Settings::default();
+    chosen.stay_reachable = true;
+    let _app =
+        PhoneApp::new(chosen, at.clone(), capabilities(), nothing_delivering()).with_reach(hook);
+    assert_eq!(*told.borrow(), vec![true], "not applied at launch");
+
+    // With a distributor, not offered.
+    let mut h = harness_reporting(capabilities(), report());
+    h.run();
+    h.run();
+    assert!(
+        h.query_by_label("Stay reachable without one").is_none(),
+        "offered where there is a distributor: {}",
+        text_of(&h)
+    );
 }

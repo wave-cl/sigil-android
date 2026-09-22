@@ -83,6 +83,7 @@ impl Host {
         capabilities: Vec<Capability>,
         report: Shared,
         remember: bool,
+        reach: crate::phone_app::Reach,
     ) -> Result<Host, String> {
         let at = Where::under(home);
         let opened = identity::ensure(&at, vault)?;
@@ -120,12 +121,10 @@ impl Host {
         let apps: Vec<Box<dyn App>> = vec![
             Box::new(sigil_chat::ChatApp::new().with_off_frame_notify(notify.clone())),
             Box::new(sigil_admin::AdminApp::new()),
-            Box::new(PhoneApp::new(
-                settings,
-                settings_at,
-                capabilities,
-                report.clone(),
-            )),
+            Box::new(
+                PhoneApp::new(settings, settings_at, capabilities, report.clone())
+                    .with_reach(reach),
+            ),
         ];
         let shell = Shell::new(apps, None)
             .with_notify(Box::new(Also(notify)))
@@ -151,6 +150,7 @@ mod tests {
             Vec::new(),
             Shared::default(),
             false,
+            Box::new(|_| Ok(())),
         )
         .unwrap();
         assert!(host.shell.accounts().active().is_unlocked());
