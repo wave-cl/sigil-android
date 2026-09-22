@@ -39,6 +39,7 @@ so a row nobody has checked reads differently from one somebody has.
 | Saving a file | app's Downloads directory, no dialog | v1 |
 | Links open (hyperlinks anywhere in sigil) | eframe's `links` feature; `webbrowser` via `ndk-context` | **seen on the device** (2026-09-22): *Get ntfy* on the Phone tab opened Play |
 | `sigil://` links | `MainActivity` → `Native.link` → `sigil_platform::deeplink::offer` → the shell's question | **offered and acted on**: the shell asks (`deeplink::confirmation`), and on yes the Calls app calls or joins the room and Chat opens the contact. Nothing happens on no, or on pressing away from it |
+| The phone's light or dark | `MainActivity.tellTheme` → `Native.theme` → `platform::set_theme`, applied by the frame | **seen on the device** (2026-09-22): `dark=true`, which is what the phone is. winit reports no theme on Android, so before this sigil was dark on every phone whatever the phone was; the light phone renders (`phone_*_light`) are what a day-mode phone gets now |
 | Self-update | none: the store or the APK | by design |
 | Tray, global shortcuts, start at login, launcher badge | `sigil-platform` Android arms | report absent, with why |
 
