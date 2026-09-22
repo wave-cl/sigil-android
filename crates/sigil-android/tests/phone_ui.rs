@@ -75,6 +75,12 @@ fn capabilities() -> Vec<Capability> {
             ),
         ),
         Capability::new("Key store", "holding this phone's key", Support::Yes),
+        // As the phone reports it with nothing installed.
+        Capability::new(
+            "Being woken",
+            "the exchange wakes this phone for a message or a call (SIP-45)",
+            Support::no("no push distributor is installed and no FCM bridge is configured"),
+        ),
     ]
 }
 
@@ -389,6 +395,13 @@ fn staying_reachable_is_offered_without_a_distributor_and_told_to_the_platform()
         text_of(&h)
     );
     assert!(text_of(&h).contains("stays running instead"));
+    // And the "Being woken" row below reads with the choice: kept awake,
+    // not the platform's word that nothing wakes it.
+    assert!(
+        text_of(&h).contains("kept awake instead"),
+        "the capability row still says the phone cannot be reached: {}",
+        text_of(&h)
+    );
 
     // At launch, a phone that chose it is told again, through with_reach.
     let told = std::rc::Rc::new(std::cell::RefCell::new(Vec::<bool>::new()));

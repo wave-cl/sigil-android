@@ -275,6 +275,13 @@ impl App for PhoneApp {
             ui.add_space(tokens::SPACING_XL);
             ui.heading("What this phone can do");
             for c in &self.capabilities {
+                // **A row that reads with the choice above it.** "Being
+                // woken" is the platform's answer at start -- no distributor
+                // -- and with the phone staying reachable the outcome it
+                // describes is had another way. The row says which; it does
+                // not claim a wake that never happens.
+                let kept_awake =
+                    c.name == "Being woken" && !c.support.is_yes() && self.settings.stay_reachable;
                 ui.horizontal(|ui| {
                     // **Painted, not written.** These were `●` and `○`, and
                     // `●` is not in egui's bundled font: every capability
@@ -284,7 +291,7 @@ impl App for PhoneApp {
                     // this -- its own comment records `●`/`○` doing it once
                     // before -- and it carries the word, which a shape
                     // cannot.
-                    let yes = c.support.is_yes();
+                    let yes = c.support.is_yes() || kept_awake;
                     sigil_ui::dot(
                         ui,
                         yes,
@@ -296,7 +303,15 @@ impl App for PhoneApp {
                     ui.vertical(|ui| {
                         ui.label(c.name);
                         ui.colored_label(theme.text_secondary, egui::RichText::new(c.what).small());
-                        if let Some(why) = c.support.reason() {
+                        if kept_awake {
+                            ui.colored_label(
+                                theme.text_muted,
+                                egui::RichText::new(
+                                    "not woken: kept awake instead, by your choice above",
+                                )
+                                .small(),
+                            );
+                        } else if let Some(why) = c.support.reason() {
                             ui.colored_label(theme.text_muted, egui::RichText::new(why).small());
                         }
                     });
