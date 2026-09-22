@@ -430,3 +430,39 @@ fn staying_reachable_is_offered_without_a_distributor_and_told_to_the_platform()
         text_of(&h)
     );
 }
+
+/// Choosing how long the exchange keeps the endpoint offers the endpoint
+/// again with the new span, for the sessions to register on their next
+/// pass. Without an endpoint there is nothing to offer.
+#[test]
+fn choosing_the_endpoints_span_offers_it_again_to_the_sessions() {
+    let _ = sigil::wake::take();
+    let mut h = harness_reporting(capabilities(), report());
+    h.run();
+    h.run();
+    to_the_end(&mut h);
+    h.get_by_label("a week").click();
+    h.run();
+    let offered = sigil::wake::take().expect("the endpoint was offered again");
+    assert_eq!(offered.ttl_secs, 7 * 86_400);
+    assert!(
+        offered
+            .url
+            .as_deref()
+            .is_some_and(|u| u.starts_with("https://ntfy.example.org/up")),
+        "{offered:?}"
+    );
+    assert!(sigil::wake::take().is_none(), "offered twice");
+
+    // No distributor, no endpoint: choosing a span offers nothing.
+    let mut h = harness_reporting(capabilities(), nothing_delivering());
+    h.run();
+    h.run();
+    to_the_end(&mut h);
+    h.get_by_label("a day").click();
+    h.run();
+    assert!(
+        sigil::wake::take().is_none(),
+        "an endpoint was offered with none held"
+    );
+}

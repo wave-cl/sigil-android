@@ -270,6 +270,12 @@ impl App for PhoneApp {
             if changed {
                 self.settings.endpoint_days = days;
                 self.save();
+                // SIP-45: the exchange holds the endpoint for the old span
+                // until told the new one -- offered again to the sessions,
+                // which register it on their next pass.
+                if let Some(url) = &report.endpoint {
+                    sigil::wake::offer(Some(url.clone()), days.clamp(1, 30) * 86_400);
+                }
             }
 
             ui.add_space(tokens::SPACING_XL);

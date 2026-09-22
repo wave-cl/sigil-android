@@ -146,6 +146,13 @@ pub fn android_main(app: android_activity::AndroidApp) {
         let mut r = report.lock().unwrap();
         r.endpoint = super::platform::stored_endpoint();
         r.distributor = r.endpoint.as_ref().map(|_| "UnifiedPush".to_string());
+        // SIP-45: the endpoint the phone holds, offered to the sessions the
+        // window is about to start, with the person's ttl. Nothing made
+        // this first registration before; the wake window re-registered an
+        // endpoint no exchange had been told.
+        if let Some(url) = &r.endpoint {
+            sigil::wake::offer(Some(url.clone()), crate::wake_ttl_secs());
+        }
         r.notifications = Some(super::platform::notifications_enabled());
     }
     let capabilities = capabilities(&report.lock().unwrap());

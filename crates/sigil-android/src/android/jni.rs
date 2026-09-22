@@ -150,6 +150,10 @@ pub extern "system" fn Java_org_squic_sigil_Native_endpoint(
         Some(bridge::string_from(&mut env, &url)).filter(|s| !s.is_empty())
     };
     platform::store_endpoint(url.as_deref());
+    // And to the sessions: registered on their next pass, or forgotten --
+    // an endpoint the distributor took back is one the exchange would go
+    // on posting to until its ttl.
+    sigil::wake::offer(url.clone(), crate::wake_ttl_secs());
     tracing::info!(
         present = url.is_some(),
         "wake endpoint updated by the distributor"

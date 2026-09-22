@@ -21,3 +21,12 @@ pub mod settings;
 pub mod android;
 
 pub use host::{Host, PhoneReport, Shared};
+
+/// SIP-45: how long the exchange may keep the wake endpoint, from the
+/// person's setting on the Phone tab, in seconds. Read off the file each
+/// time: it is asked for as an endpoint arrives, on a Java thread that
+/// holds no app.
+pub fn wake_ttl_secs() -> u32 {
+    let at = settings::Settings::path_under(&host::data_dir());
+    settings::Settings::load(&at).endpoint_days.clamp(1, 30) * 86_400
+}
