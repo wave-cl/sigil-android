@@ -237,6 +237,15 @@ thread (from Rust's own thread it crashed inside the framework); a Rust
 panic is written to logcat before the abort; and every call event is
 logged, since a call that ended silently had nothing to read.
 
+A dialog cannot scroll -- egui 0.36 makes a `ScrollArea` inside a `Modal`
+dismiss the dialog on any press inside it, with every `auto_shrink` and inside
+a sensing scope of its own -- so a dialog that does not fit is simply gone,
+and a `Modal` being centred means it goes off the top as much as the bottom.
+Every one of the six is measured against both edges, upright and sideways.
+Verify was the one that did not fit sideways, at 482 points on a 360-point
+screen; it is given a wider box on a short screen and its code and key go
+beside the words rather than under them.
+
 Known limits: the soft keyboard delivers key events only (no IME
 composition, so CJK and swipe typing do not commit -- a NativeActivity
 limit winit does not bridge); the QR is drawn, not scanned.
