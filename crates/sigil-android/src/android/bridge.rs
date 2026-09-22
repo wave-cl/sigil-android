@@ -25,7 +25,14 @@ static CLASSES: OnceLock<HashMap<&'static str, GlobalRef>> = OnceLock::new();
 pub const PACKAGE: &str = "org/squic/sigil";
 
 /// Every class Rust calls into. Add here before calling a new one.
-const GLUE: &[&str] = &["Vault", "Notifier", "Files", "Endpoint", "CallService"];
+const GLUE: &[&str] = &[
+    "Vault",
+    "Notifier",
+    "Files",
+    "Endpoint",
+    "CallService",
+    "ReachService",
+];
 
 /// Called from `JNI_OnLoad`, which runs when either the activity or the
 /// wake service loads the library. Once per process.
