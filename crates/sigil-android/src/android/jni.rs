@@ -245,6 +245,18 @@ pub extern "system" fn Java_org_squic_sigil_Native_link(
 /// `Native.insets(top, bottom, left, right)`: what the system draws over the
 /// surface, in pixels, whenever it changes.
 #[unsafe(no_mangle)]
+/// `Native.theme(dark)`: the phone's light or dark, at start and on change.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_org_squic_sigil_Native_theme(
+    _env: JNIEnv,
+    _class: JClass,
+    dark: jni::sys::jboolean,
+) {
+    platform::set_theme(dark != 0);
+    tracing::info!(dark = dark != 0, "the phone's theme");
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_org_squic_sigil_Native_insets(
     _env: JNIEnv,
     _class: JClass,

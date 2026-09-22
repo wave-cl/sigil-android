@@ -43,4 +43,11 @@ object Native {
      * bar or keyboard, cutouts. From [Insets], whenever it changes.
      */
     external fun insets(top: Int, bottom: Int, left: Int, right: Int)
+
+    /**
+     * Whether the phone is in its dark theme, at start and whenever it
+     * changes. winit reports no theme on Android, so without this sigil
+     * was dark on every phone, whatever the phone was.
+     */
+    external fun theme(dark: Boolean)
 }

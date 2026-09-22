@@ -2,6 +2,7 @@ package org.squic.sigil
 
 import android.app.NativeActivity
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.WindowManager
 import org.unifiedpush.android.connector.UnifiedPush
@@ -28,6 +29,7 @@ class MainActivity : NativeActivity() {
         // turn it on, and this keeps it on while the window is up.
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         Insets.watch(this)
+        tellTheme(resources.configuration)
         askForWhatCallsNeed()
         // SIP-45: choose a distributor -- the one already chosen, else the
         // one the platform offers, which includes this app's own embedded
@@ -37,6 +39,21 @@ class MainActivity : NativeActivity() {
             if (found) UnifiedPush.register(this)
         }
         handle(intent)
+    }
+
+    /**
+     * The phone's light or dark, as the system has it. `uiMode` is in the
+     * manifest's configChanges, so a change reaches here rather than
+     * recreating the window.
+     */
+    private fun tellTheme(config: Configuration) {
+        val night = config.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        Native.theme(night == Configuration.UI_MODE_NIGHT_YES)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        tellTheme(newConfig)
     }
 
     override fun onDestroy() {

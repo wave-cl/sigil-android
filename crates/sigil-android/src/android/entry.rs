@@ -22,6 +22,15 @@ struct Sigil {
 
 impl eframe::App for Sigil {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // The phone's light or dark, as the system says: winit reports no
+        // theme on Android, so this is the one word egui gets.
+        if let Some(dark) = super::platform::take_theme() {
+            ctx.set_theme(if dark {
+                egui::Theme::Dark
+            } else {
+                egui::Theme::Light
+            });
+        }
         let unfocused = !ctx.input(|i| i.viewport().focused.unwrap_or(true));
         self.shell.update_all(ctx, unfocused);
     }

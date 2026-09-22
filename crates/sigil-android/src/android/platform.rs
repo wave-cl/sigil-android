@@ -450,3 +450,21 @@ pub fn insets_px() -> [i32; 4] {
 pub fn repaint_with(f: impl Fn() + Send + Sync + 'static) {
     let _ = REPAINT.set(Box::new(f));
 }
+
+/// The phone's theme, as the system last said: `Some(true)` dark, taken
+/// once by the frame that applies it. winit reports no theme on Android,
+/// so egui's "follow the system" fell to dark on every phone.
+static THEME: Mutex<Option<bool>> = Mutex::new(None);
+
+pub fn set_theme(dark: bool) {
+    if let Ok(mut t) = THEME.lock() {
+        *t = Some(dark);
+    }
+    if let Some(repaint) = REPAINT.get() {
+        repaint();
+    }
+}
+
+pub fn take_theme() -> Option<bool> {
+    THEME.lock().ok().and_then(|mut t| t.take())
+}
