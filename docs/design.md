@@ -31,7 +31,7 @@ so a row nobody has checked reads differently from one somebody has.
 | A ring on a locked screen | `Notifier.ring` with a full-screen intent | **works on the device** (2026-09-19): it names the caller, Answer answers, and it is withdrawn when the call goes |
 | Pairing, both halves | desktop: `sqx-pair:` in Chat › Devices; phone: `Cmd::ClaimAccount`, `Chat::claim_listed` | the credential half works end to end; **the claim half has no producer** -- see below |
 | The device key in the key store | `identity::ensure` + `Vault.kt` | **works on the device**: the app opens its own identity, and the Phone tab reports the key store as present |
-| A distributor the person chooses | UnifiedPush connector; embedded FCM distributor as fallback | **still nothing**: none installed, and the embedded bridge has no gateway, so it no longer offers itself as one |
+| A distributor the person chooses | UnifiedPush connector; embedded FCM distributor as fallback | **still nothing installed** -- but the Phone tab now says what a distributor is and offers two links to get one, where before it named ntfy in prose and stopped. The embedded bridge has no gateway, so it no longer offers itself as one |
 | A call with the microphone open, visibly | `CallService.kt`, `Notify::calling` | **wired**: sigil's `Notify` gained a call-began hook, the chat app says so on change, and the Android arm starts and stops the service. Tested on a desktop through `update`; **not yet seen on the phone** |
 | Files to attach, from the storage framework | `sigil_chat::files::Chooser` → `Files.kt` | **works on the device** (2026-09-19), once the picker was started from the main thread |
 | Saving a file | app's Downloads directory, no dialog | v1 |
@@ -245,6 +245,16 @@ Every one of the six is measured against both edges, upright and sideways.
 Verify was the one that did not fit sideways, at 482 points on a 360-point
 screen; it is given a wider box on a short screen and its code and key go
 beside the words rather than under them.
+
+**A link is a control, which it was not.** `eframe`'s `links` feature is in
+its defaults and both workspaces build it with `default-features = false`, so
+`egui-winit` compiled `open_url_in_browser` to a log line: every hyperlink in
+sigil opened nothing, on the phone and on the desktop, in silence. There is no
+failing render and no error -- a link that does nothing looks exactly like one
+nobody pressed. `tests/links.rs` in each workspace asks `cargo tree -i
+webbrowser`, which walks the *resolved* graph; the first version asked `cargo
+metadata`, which lists the lock file and passed with the feature taken back
+out.
 
 Known limits: the soft keyboard delivers key events only (no IME
 composition, so CJK and swipe typing do not commit -- a NativeActivity

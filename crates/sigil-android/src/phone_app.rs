@@ -124,10 +124,29 @@ impl App for PhoneApp {
                 (None, _) => {
                     ui.colored_label(
                         theme.destructive,
-                        "No push distributor. Install a UnifiedPush distributor (ntfy, for \
-                         one), or build with the FCM bridge configured; until then sigil \
-                         hears nothing while it is not in front.",
+                        "No push distributor. Until there is one, sigil hears nothing \
+                         while it is not in front: a message waits until the app is \
+                         opened.",
                     );
+                    ui.colored_label(
+                        theme.text_secondary,
+                        "A distributor is a separate app, chosen by you, that holds the \
+                         one connection every app on this phone is woken through. sigil \
+                         never sees the push service's account, and the push service \
+                         never sees more than four bytes.",
+                    );
+                    // **A way to do it, not only a name to remember.** This
+                    // said "Install a UnifiedPush distributor (ntfy, for
+                    // one)" and stopped there: the one screen that reports
+                    // the phone cannot be woken offered nothing to press. A
+                    // link is what the person needs, and a link is a control
+                    // now -- `links` was not in this workspace's eframe
+                    // features, so every one of them opened nothing.
+                    ui.horizontal_wrapped(|ui| {
+                        ui.hyperlink_to("Get ntfy", NTFY);
+                        ui.add_space(tokens::SPACING_SM);
+                        ui.hyperlink_to("Other distributors", UNIFIEDPUSH);
+                    });
                 }
             }
             if let Some(last) = &report.last_window {
@@ -215,6 +234,17 @@ impl App for PhoneApp {
         AppResponse::default()
     }
 }
+
+/// The distributor most people will want, on the store this phone has.
+///
+/// A Play link rather than a package name: `market://` needs Play and
+/// F-Droid users have none, and an `https://` play link is handled by Play
+/// where it is installed and by a browser where it is not.
+const NTFY: &str = "https://play.google.com/store/apps/details?id=io.heckel.ntfy";
+
+/// And the list of the others, because which distributor to run is the
+/// person's choice and naming one is not the same as choosing for them.
+const UNIFIEDPUSH: &str = "https://unifiedpush.org/users/distributors/";
 
 /// Room for the number beside a slider: "30 days" in a box, with its
 /// padding. Measured once by eye against the phone rather than derived,

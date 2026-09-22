@@ -40,7 +40,16 @@ squic = { git = "https://github.com/wave-cl/squic-rust", tag = "v0.27.0" }
 # eframe with winit's Android backend. `android-native-activity` is the
 # smaller of the two: no AndroidX game-activity library on the Java side, no
 # C++ glue -- an `android_main` and a NativeActivity in the manifest.
-eframe = { version = "0.36", default-features = false, features = ["wgpu", "android-native-activity"] }
+# `links` is in eframe's defaults and those are off here, so it has to be
+# named: without it `egui-winit` compiles `open_url_in_browser` to a log line
+# and every link in sigil is a dead control. `webbrowser` reaches Android
+# through `jni` and `ndk-context`, which this crate already carries, so the
+# activity a NativeActivity registers is the one it starts the intent from.
+eframe = { version = "0.36", default-features = false, features = [
+    "wgpu",
+    "android-native-activity",
+    "links",
+] }
 egui = "0.36"
 
 # --- runtime --------------------------------------------------------------

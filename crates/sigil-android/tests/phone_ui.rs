@@ -32,6 +32,19 @@ const PHONE_HEIGHT: f32 = 804.0;
 ///
 /// An endpoint is a URL: one unbroken word, which is the shape wrapping
 /// cannot help with, and the one this pane is guaranteed to be given.
+/// The state the phone is actually in until somebody installs a distributor:
+/// nothing delivering, nothing to show, and -- until now -- nothing to press.
+/// It is the longest of the two, because it is the one that has to explain
+/// itself.
+fn nothing_delivering() -> Shared {
+    Arc::new(Mutex::new(PhoneReport {
+        endpoint: None,
+        distributor: None,
+        last_window: None,
+        notifications: Some(false),
+    }))
+}
+
 fn report() -> Shared {
     Arc::new(Mutex::new(PhoneReport {
         endpoint: Some(
@@ -66,13 +79,17 @@ fn capabilities() -> Vec<Capability> {
 }
 
 fn harness(capabilities: Vec<Capability>) -> Harness<'static> {
+    harness_reporting(capabilities, report())
+}
+
+fn harness_reporting(capabilities: Vec<Capability>, report: Shared) -> Harness<'static> {
     let dir = tempfile::tempdir().expect("a temporary directory");
     let at = dir.path().join("settings.json");
     // Kept for the harness's life: the app writes to it when a radio button
     // is pressed, and a `TempDir` dropped here would take the directory.
     let keep = Box::leak(Box::new(dir));
     let _ = keep;
-    let app = PhoneApp::new(Settings::default(), at, capabilities, report());
+    let app = PhoneApp::new(Settings::default(), at, capabilities, report);
     let app = std::rc::Rc::new(std::cell::RefCell::new(app));
     let mut accounts = Accounts::of(vec![Account::unlocked_for_test([1u8; 32])]);
     Harness::builder()
@@ -196,4 +213,84 @@ fn nothing_in_the_phone_tab_is_out_of_reach() {
         deepest.0,
         deepest.3
     );
+}
+
+/// **The one screen that says the phone cannot be woken offers a way to fix
+/// it.**
+///
+/// Until a distributor is installed, sigil hears nothing while it is not in
+/// front -- which is the whole of SIP-45 not working -- and this pane is
+/// where a person finds that out. It said "Install a UnifiedPush distributor
+/// (ntfy, for one)" and stopped: a name to remember and nothing to press.
+///
+/// Two links now, because which distributor to run is the person's choice
+/// and naming one is not choosing for them. They are real controls now as
+/// well: `links` was not in this workspace's eframe features, so every
+/// hyperlink in sigil opened nothing at all (`tests/links.rs`).
+///
+/// And the pane still fits, and is still reachable, in the state that has
+/// the most to say -- which is this one, not the one with a distributor.
+#[test]
+fn with_no_distributor_the_phone_tab_offers_one() {
+    let mut h = harness_reporting(capabilities(), nothing_delivering());
+    h.run();
+    h.run();
+    let said = text_of(&h);
+    assert!(
+        said.contains("No push distributor"),
+        "the pane does not say the phone cannot be woken: {said}"
+    );
+    for what in ["Get ntfy", "Other distributors"] {
+        assert!(
+            said.contains(what),
+            "{what:?} is not offered, so the pane names a problem and no way \
+             out of it: {said}"
+        );
+    }
+
+    let seen = boxes(&h);
+    let over: Vec<String> = seen
+        .iter()
+        .filter(|(_, x0, x1, _)| x1 - x0 > 0.0 && (*x1 > PHONE_WIDTH as f64 + 1.0 || *x0 < -1.0))
+        .map(|(name, x0, x1, _)| format!("{name:?} at {x0:.0}..{x1:.0}"))
+        .collect();
+    assert!(
+        over.is_empty(),
+        "{} widget(s) are drawn outside a {PHONE_WIDTH}-point screen:\n  {}",
+        over.len(),
+        over.join("\n  ")
+    );
+
+    to_the_end(&mut h);
+    let deepest = boxes(&h)
+        .into_iter()
+        .max_by(|a, b| a.3.total_cmp(&b.3))
+        .expect("something drew");
+    assert!(
+        deepest.3 <= PHONE_HEIGHT as f64 + 1.0,
+        "{:?} still ends at y={:.0} after scrolling to the end",
+        deepest.0,
+        deepest.3
+    );
+}
+
+/// Everything the pane says, as one string. Both `label` and `value`:
+/// accesskit puts an interactive widget's text in one and a plain one's in
+/// the other, so reading only labels sees buttons and no prose.
+fn text_of(h: &Harness<'static>) -> String {
+    let mut found: Vec<String> = Vec::new();
+    fn walk(node: egui_kittest::Node<'_>, out: &mut Vec<String>) {
+        let n = node.accesskit_node();
+        if let Some(l) = n.label() {
+            out.push(l.to_string());
+        }
+        if let Some(v) = n.value() {
+            out.push(v.to_string());
+        }
+        for c in node.children() {
+            walk(c, out);
+        }
+    }
+    walk(h.root(), &mut found);
+    found.join(" | ")
 }
