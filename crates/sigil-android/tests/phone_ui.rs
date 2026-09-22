@@ -391,8 +391,10 @@ fn staying_reachable_is_offered_without_a_distributor_and_told_to_the_platform()
             Ok(())
         })
     };
-    let mut chosen = Settings::default();
-    chosen.stay_reachable = true;
+    let chosen = Settings {
+        stay_reachable: true,
+        ..Settings::default()
+    };
     let _app =
         PhoneApp::new(chosen, at.clone(), capabilities(), nothing_delivering()).with_reach(hook);
     assert_eq!(*told.borrow(), vec![true], "not applied at launch");
