@@ -36,6 +36,7 @@ so a row nobody has checked reads differently from one somebody has.
 | A call to or from somebody at another exchange (SIP-39) | `sigil_net::spawn_cross_call` / `spawn_cross_answer`, the Calls field, the chat's ring | **built, both halves**, and proven end to end against two federated in-process exchanges: placed by `name@domain`, carried, rung in the session, answered on the held connection, connected; and refused with the caller told. Not yet seen on the phone |
 | Files to attach, from the storage framework | `sigil_chat::files::Chooser` → `Files.kt` | **works on the device** (2026-09-19), once the picker was started from the main thread |
 | Saving a file | app's Downloads directory, no dialog | v1 |
+| Links open (hyperlinks anywhere in sigil) | eframe's `links` feature; `webbrowser` via `ndk-context` | **seen on the device** (2026-09-22): *Get ntfy* on the Phone tab opened Play |
 | `sigil://` links | `MainActivity` → `Native.link` → `sigil_platform::deeplink::offer` → the shell's question | **offered and acted on**: the shell asks (`deeplink::confirmation`), and on yes the Calls app calls or joins the room and Chat opens the contact. Nothing happens on no, or on pressing away from it |
 | Self-update | none: the store or the APK | by design |
 | Tray, global shortcuts, start at login, launcher badge | `sigil-platform` Android arms | report absent, with why |

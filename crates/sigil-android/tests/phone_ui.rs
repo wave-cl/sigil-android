@@ -184,6 +184,45 @@ fn the_phone_tab_fits_the_phone() {
     );
 }
 
+/// **The key is one line somebody can read out.**
+///
+/// `sqx-device:<key>` is fifty-five characters of monospace, and on the phone
+/// it wrapped after `sqx-` -- the one hyphen in it -- so the key started with
+/// a dangling prefix on the line above. Seen on the device, not in any test:
+/// the width check passed, because a label that wraps is not a label that
+/// overflows. The scheme is a caption now and the key stands alone, and this
+/// asks for the key as one widget with nothing cut and nothing joined.
+#[test]
+fn the_phones_key_is_shown_whole_on_one_line() {
+    let mut h = harness(capabilities());
+    h.run();
+    h.run();
+    let key = sigil::Account::unlocked_for_test([1u8; 32])
+        .unlocked()
+        .expect("unlocked")
+        .me()
+        .to_string();
+    let labels: Vec<String> = boxes(&h).into_iter().map(|(n, ..)| n).collect();
+    assert!(
+        labels.contains(&key),
+        "the key is not drawn as one label of its own: {labels:?}"
+    );
+    assert!(
+        labels.iter().any(|l| l == "sqx-device:"),
+        "the scheme is not shown as its caption"
+    );
+    // The whole string is still on screen once, and rightly: the QR names
+    // what it encodes, which is what the other device scans.
+    assert_eq!(
+        labels
+            .iter()
+            .filter(|l| l.starts_with("sqx-device:") && l.len() > 11)
+            .count(),
+        1,
+        "the whole `sqx-device:` string should be the QR's and nobody else's: {labels:?}"
+    );
+}
+
 #[test]
 fn nothing_in_the_phone_tab_is_out_of_reach() {
     let mut h = harness(capabilities());

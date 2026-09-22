@@ -73,8 +73,22 @@ impl App for PhoneApp {
                     );
                     ui.add_space(tokens::SPACING_SM);
                     sigil_ui::qr(ui, &shown, 200.0);
+                    // **The scheme on its own line.** `sqx-device:<key>` is
+                    // fifty-five characters of monospace, and on the phone
+                    // it broke after `sqx-` -- the one hyphen in it -- so the
+                    // key somebody is meant to read out started with a
+                    // dangling prefix on the line above. The key alone fits
+                    // the width; the scheme is what the QR and Copy carry,
+                    // and here it is a caption.
+                    let (scheme, key) = shown.split_once(':').unwrap_or(("", &shown));
+                    if !scheme.is_empty() {
+                        ui.colored_label(
+                            theme.text_muted,
+                            egui::RichText::new(format!("{scheme}:")).small(),
+                        );
+                    }
                     ui.add(
-                        egui::Label::new(egui::RichText::new(&shown).monospace().small())
+                        egui::Label::new(egui::RichText::new(key).monospace().small())
                             .selectable(true),
                     );
                     if ui.button("Copy").clicked() {
