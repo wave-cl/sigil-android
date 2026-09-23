@@ -75,6 +75,13 @@ impl App for PhoneApp {
         "Phone"
     }
 
+    /// The handset, not the default globe: this pane is about *this*
+    /// device -- what the platform lets it do, and how it is reached when
+    /// it is not in front.
+    fn icon(&self) -> sigil::Icon {
+        sigil::Icon::Device
+    }
+
     fn render(&mut self, ctx: &mut AppContext<'_>, ui: &mut egui::Ui) -> AppResponse {
         let theme = ColorTheme::current(ui.ctx());
         egui::ScrollArea::vertical().show(ui, |ui| {
@@ -85,11 +92,17 @@ impl App for PhoneApp {
             match ctx.account().unlocked() {
                 Some(unlocked) => {
                     let shown = sigil_phone::pairing::device_string(&unlocked.me());
+                    // Small, under its heading: what a card explains is
+                    // worth reading once, and at body size three lines of
+                    // it push the thing it explains off a phone's screen.
                     ui.colored_label(
                         theme.text_secondary,
-                        "This phone's key. Show it to a device that holds your account — \
-                         its Chat › Devices pane reads it — and it will register this \
-                         phone and show you where to go.",
+                        egui::RichText::new(
+                            "This phone's key. Show it to a device that holds your account — \
+                             its Chat › Devices pane reads it — and it will register this \
+                             phone and show you where to go.",
+                        )
+                        .small(),
                     );
                     ui.add_space(tokens::SPACING_SM);
                     sigil_ui::qr(ui, &shown, 200.0);
@@ -101,19 +114,28 @@ impl App for PhoneApp {
                     // the width; the scheme is what the QR and Copy carry,
                     // and here it is a caption.
                     let (scheme, key) = shown.split_once(':').unwrap_or(("", &shown));
-                    if !scheme.is_empty() {
-                        ui.colored_label(
-                            theme.text_muted,
-                            egui::RichText::new(format!("{scheme}:")).small(),
-                        );
-                    }
+                    // The caption and the way to take the key share a row:
+                    // the caption is short, and Copy under the key -- a row
+                    // of its own, a row's worth of space away -- read as
+                    // belonging to whatever came next. **Never beside the
+                    // key itself**: forty-four monospace characters and a
+                    // button are wider than the pane, and a row wider than
+                    // the pane re-lays every row after it.
+                    ui.horizontal(|ui| {
+                        if !scheme.is_empty() {
+                            ui.colored_label(
+                                theme.text_muted,
+                                egui::RichText::new(format!("{scheme}:")).small(),
+                            );
+                        }
+                        if sigil_ui::icon_button_named(ui, sigil_ui::Icon::Copy, "Copy").clicked() {
+                            ui.ctx().copy_text(shown.clone());
+                        }
+                    });
                     ui.add(
                         egui::Label::new(egui::RichText::new(key).monospace().small())
                             .selectable(true),
                     );
-                    if sigil_ui::icon_button_named(ui, sigil_ui::Icon::Copy, "Copy").clicked() {
-                        ui.ctx().copy_text(shown);
-                    }
                 }
                 None => {
                     ui.colored_label(
@@ -127,9 +149,12 @@ impl App for PhoneApp {
             ui.heading("Notifications say");
             ui.colored_label(
                 theme.text_secondary,
-                "Composed here, from words only this phone can read, and shown to the \
-                 platform. The quietest setting keeps the platform as ignorant as the \
-                 push service, which is handed four bytes.",
+                egui::RichText::new(
+                    "Composed here, from words only this phone can read, and shown to the \
+                     platform. The quietest setting keeps the platform as ignorant as the \
+                     push service, which is handed four bytes.",
+                )
+                .small(),
             );
             let mut privacy = self.settings.privacy;
             for choice in Privacy::ALL {
