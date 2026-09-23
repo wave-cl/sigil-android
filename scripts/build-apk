@@ -68,9 +68,13 @@ if [ -n "${SQEX_PATH:-}" ]; then
 fi
 
 echo "== cargo ndk ($abi, $profile)"
+# The same guarded expansion as `patch_args` below, and for the same reason:
+# macOS ships bash 3.2, where `"${empty[@]}"` under `set -u` is an *unbound
+# variable* rather than nothing at all. A debug build -- the one anybody
+# testing on a phone runs -- died on this line before cargo was reached.
 release_flag=()
 [ "$profile" = release ] && release_flag=(--release)
-(cd "$repo" && cargo ndk -t "$abi" -P "$platform" -o "$out" ${patch_args[@]+"${patch_args[@]}"} build -p sigil-android "${release_flag[@]}")
+(cd "$repo" && cargo ndk -t "$abi" -P "$platform" -o "$out" ${patch_args[@]+"${patch_args[@]}"} build -p sigil-android ${release_flag[@]+"${release_flag[@]}"})
 
 lib="$out/$abi/libsigil_android.so"
 [ -f "$lib" ] || { echo "no $lib was built; not running Gradle"; exit 1; }
