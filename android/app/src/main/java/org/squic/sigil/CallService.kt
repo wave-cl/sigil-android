@@ -71,7 +71,19 @@ class CallService : Service() {
         } else {
             startForeground(4, notice)
         }
+        // **After the foreground service is up, not before.** The path above
+        // can give up and `stopSelf()`, and a session taken by a service that
+        // then stopped is a phone left in the communication mode with no call
+        // in it. Taken here, it is given back in `onDestroy` whatever ends the
+        // service -- including the system killing it, which no Rust-side
+        // teardown would hear about.
+        Audio.beginCall(this)
         return START_STICKY
+    }
+
+    override fun onDestroy() {
+        Audio.endCall(this)
+        super.onDestroy()
     }
 
     companion object {

@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- The call's audio session: the communication mode, focus, and
+         choosing the earpiece over the loudspeaker. A normal permission,
+         granted at install, with no prompt and nothing to declare. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- No CAMERA: the pairing QR is drawn, never scanned (docs/pairing.md),
          and a permission nothing uses is a question at review. -->
     <uses-permission android:name="android.permission.VIBRATE" />

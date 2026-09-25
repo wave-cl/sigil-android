@@ -79,6 +79,31 @@ pub fn begin_call(with: &str) -> Result<(), String> {
     })
 }
 
+/// `Audio.setSpeaker(context, on)`: put the call on the loudspeaker, or back
+/// on the earpiece.
+///
+/// **Returns where the sound actually goes**, not what was asked for. A tablet
+/// has no earpiece, a headset takes precedence over both, and the platform can
+/// refuse outright -- so a control drawn from the request rather than from the
+/// answer would tell somebody their call was private when it was not.
+///
+/// `with_env` rather than `call_static_with_context`: that helper discards the
+/// return value, and here the return value is the whole point.
+pub fn set_speaker(on: bool) -> Result<bool, String> {
+    with_env(|env, context| {
+        let class = bridge::class("Audio")?;
+        let got = env
+            .call_static_method(
+                class,
+                "setSpeaker",
+                "(Landroid/content/Context;Z)Z",
+                &[JValue::Object(context), JValue::Bool(u8::from(on))],
+            )?
+            .z()?;
+        Ok(got)
+    })
+}
+
 /// `CallService.end(context)`: the call is over, let the process go.
 pub fn end_call() -> Result<(), String> {
     bridge::call_static_with_context("CallService", "end", "(Landroid/content/Context;)V", &[])
@@ -245,6 +270,25 @@ impl Notify for AndroidNotifier {
             // about is a call the system may stop, and the only sign would
             // be a call ending for no reason anybody can see.
             tracing::warn!("could not tell the platform about a call: {why}");
+        }
+    }
+
+    /// A phone has both, and the person chooses between them here rather
+    /// than anywhere else.
+    fn routable(&self) -> bool {
+        true
+    }
+
+    fn route(&self, speaker: bool) -> bool {
+        match set_speaker(speaker) {
+            Ok(got) => got,
+            Err(why) => {
+                // Said rather than swallowed, and the *old* route returned:
+                // a control that drew what it asked for would tell somebody
+                // their call had moved to the earpiece when it had not.
+                tracing::warn!("could not move the call's sound: {why}");
+                !speaker
+            }
         }
     }
 
