@@ -2,10 +2,18 @@
 # signed with the upload key, attached to a GitHub release -- and, when a
 # Play service account is in the secrets, pushed to a Play track.
 #
-# Runs on a `v*` tag whose version is the workspace's. The sibling trees are
-# built at the refs given (main by default, as ci.yml does) and the release
-# notes record which commits those were, so a release says what it was
-# built from until the pins in Cargo.toml move to tags and the patches go.
+# Runs on a `v*` tag whose version is the workspace's. **sigil is built at the
+# ref in `.sigil-ref`**, not at `main`: it is a path dependency, so whatever is
+# checked out beside this repo *is* half the artefact, and a tag push carries
+# no dispatch inputs -- so a `main` default meant the normal release path built
+# against a moving target and said nothing about it. A dispatch may override
+# the file; a tag push may not, because a release nobody can rebuild is not a
+# release.
+#
+# sqex and sqnr are **not** checked out. Nothing references `../sqex` or
+# `../sqnr`: cargo resolves them from the git tags in Cargo.toml. Checking them
+# out and printing their shas in the release notes said the build used commits
+# it had never read, which is worse than saying nothing.
 #
 # Secrets (docs/play-store.md):
 #   SIGIL_UPLOAD_KEYSTORE_B64       the PKCS12 from scripts/upload-key, base64
@@ -21,22 +29,12 @@ on:
   workflow_dispatch:
     inputs:
       sigil_ref:
-        description: "wave-cl/sigil ref to build against"
-        default: main
-      sqex_ref:
-        description: "wave-cl/sqex ref to build against"
-        default: main
-      sqnr_ref:
-        description: "wave-cl/sqnr ref to build against"
-        default: main
+        description: "wave-cl/sigil ref to build against (blank: the ref in .sigil-ref)"
       track:
         description: "Play track to upload to (blank: no upload)"
         default: internal
 
 env:
-  SIGIL_REF: ${{ github.event.inputs.sigil_ref || 'main' }}
-  SQEX_REF: ${{ github.event.inputs.sqex_ref || 'main' }}
-  SQNR_REF: ${{ github.event.inputs.sqnr_ref || 'main' }}
   TRACK: ${{ github.event.inputs.track || 'internal' }}
 
 permissions:
@@ -49,21 +47,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: sigil-android
+
+      # Which sigil this is. The file is the answer on a tag push, where there
+      # are no dispatch inputs at all; a dispatch may name another.
+      - name: Which sigil
+        id: sigil
+        run: |
+          given="${{ github.event.inputs.sigil_ref }}"
+          if [ -n "$given" ]; then
+            ref="$given"
+            echo "sigil ref from the dispatch: $ref"
+          else
+            ref="$(tr -d '[:space:]' < sigil-android/.sigil-ref)"
+            [ -n "$ref" ] || { echo ".sigil-ref is empty: name the sigil tag to build against"; exit 1; }
+            echo "sigil ref from .sigil-ref: $ref"
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           repository: wave-cl/sigil
-          ref: ${{ env.SIGIL_REF }}
+          ref: ${{ steps.sigil.outputs.ref }}
           path: sigil
-      - uses: actions/checkout@v4
-        with:
-          repository: wave-cl/sqex
-          ref: ${{ env.SQEX_REF }}
-          path: sqex
-      - uses: actions/checkout@v4
-        with:
-          repository: wave-cl/sqnr
-          ref: ${{ env.SQNR_REF }}
-          path: sqnr
 
       # The tag is the version, or the release is misnamed from the start.
       - name: Version
@@ -151,15 +155,28 @@ jobs:
         id: artifacts
         run: |
           v="${{ steps.version.outputs.version }}"
+          SIGIL_TAG="${{ steps.sigil.outputs.ref }}"
           mkdir -p out
+
+          # What cargo actually resolved, read out of the lock rather than
+          # named by hand, so a disagreement between the two trees' pins shows
+          # up in the notes and not in an APK somebody has already installed.
+          # **Guarded**: a pattern that stops matching would otherwise write
+          # notes with no dependencies in them and say nothing about it.
+          sed -n 's|^source = "git+https://github.com/wave-cl/\([a-z-]*\)?tag=\([^#]*\)#\(.*\)"|- \1 \2 `\3`|p' \
+            sigil-android/Cargo.lock | sort -u > pinned.md
+          [ -s pinned.md ] || {
+            echo "no pinned git dependencies found in Cargo.lock -- the lock's"
+            echo "source format has changed and these notes would be empty"
+            exit 1
+          }
           cp sigil-android/android/app/build/outputs/bundle/release/app-release.aab "out/sigil-android-v$v.aab"
           cp sigil-android/android/app/build/outputs/apk/release/app-release.apk "out/sigil-android-v$v.apk"
           {
             echo "Built from:"
             echo "- sigil-android \`$(git -C sigil-android rev-parse HEAD)\`"
-            echo "- sigil ${SIGIL_REF} \`$(git -C sigil rev-parse HEAD)\`"
-            echo "- sqex ${SQEX_REF} \`$(git -C sqex rev-parse HEAD)\`"
-            echo "- sqnr ${SQNR_REF} \`$(git -C sqnr rev-parse HEAD)\`"
+            echo "- sigil ${SIGIL_TAG} \`$(git -C sigil rev-parse HEAD)\`"
+            cat pinned.md
             echo
             echo "The \`.aab\` is what Play was given; the \`.apk\` installs over adb and is signed with the same key."
           } > out/notes.md
