@@ -66,14 +66,64 @@ pub fn point_home(files_dir: &std::path::Path) {
     }
 }
 
+/// What the log says when nobody has asked for anything else.
+///
+/// The crates a phone's own faults live in, at `info`. The transport is
+/// deliberately absent: `squic`, `sqex_proto` and `sqex_net` are loud enough
+/// to push everything else out of a 256 KiB logcat buffer, and they are the
+/// ones worth naming in [`WHERE_TO_ASK`] when a call goes quiet.
+const BUILT_IN: &str = "sigil=info,sigil_android=info,sigil_phone=info,sigil_net=info,\
+                        sigil_chat=info,sigil_voice=info,sqex_voice=info,sqex_chat=info";
+
+/// A file an `adb push` can write and this app can read, so a handset in
+/// somebody's pocket can be asked for more without being rebuilt.
+///
+/// **Why a file and not a rebuild.** A call rang out from a phone and the far
+/// end heard nothing, and the whole of what the phone could say about it was
+/// one line — because this filter was a literal with no way in. Getting any
+/// more meant an edit, a cross-compile, a reinstall and asking somebody to
+/// place the call again, which is not a thing to do while a fault is in front
+/// of you.
+///
+/// `/data/local/tmp` is shell-owned and world-searchable, so a pushed file
+/// lands `0644` and this process can open it. That it is writable by anything
+/// with adb is not much of a widening: logcat has been per-app since Jelly
+/// Bean, so what this can turn up is only ever readable by somebody who
+/// already has the cable.
+///
+/// ```text
+/// adb shell 'echo sigil_chat=debug,sqex_chat=debug > /data/local/tmp/sigil-log'
+/// adb shell am force-stop org.squic.sigil   # it is read once, at start
+/// adb shell rm /data/local/tmp/sigil-log    # back to the built-in
+/// ```
+const WHERE_TO_ASK: &str = "/data/local/tmp/sigil-log";
+
 pub fn install_logging() {
+    // `RUST_LOG` first all the same: it costs nothing and it is what anybody
+    // running this library off a phone will reach for.
+    let (filter, from) = match std::env::var("RUST_LOG")
+        .ok()
+        .map(|s| (s, "RUST_LOG"))
+        .or_else(|| {
+            std::fs::read_to_string(WHERE_TO_ASK)
+                .ok()
+                .map(|s| (s, WHERE_TO_ASK))
+        })
+        .map(|(s, from)| (s.trim().to_string(), from))
+        .filter(|(s, _)| !s.is_empty())
+    {
+        Some((asked, from)) => (asked, from),
+        None => (BUILT_IN.to_string(), "the built-in filter"),
+    };
     let _ = tracing_subscriber::registry()
         .with(super::logcat::Logcat::new("sigil"))
-        .with(tracing_subscriber::EnvFilter::new(
-            "sigil=info,sigil_android=info,sigil_phone=info,sigil_net=info,sigil_chat=info,\
-             sigil_voice=info,sqex_voice=info,sqex_chat=info",
-        ))
+        .with(tracing_subscriber::EnvFilter::new(filter.clone()))
         .try_init();
+    // **What it is pointed at, before anything it says.** A filter read from
+    // somewhere else is the one thing that changes what every later line
+    // means, and a log that does not say which one it took leaves the reader
+    // guessing whether their edit landed.
+    tracing::info!(%filter, "logging from {from}");
     // A panic on a phone goes to stderr, which nobody reads, and then the
     // process aborts with only a signal in the log. Say what it was, where
     // the rest of the log is, before it does.
