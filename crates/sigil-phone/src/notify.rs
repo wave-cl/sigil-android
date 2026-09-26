@@ -95,10 +95,33 @@ pub fn compose(
             let newest = together.last().expect("a channel with an arrival");
             let more = together.len() - 1;
             let title = newest.conversation.clone();
-            let mut body = match privacy {
-                Privacy::SenderAndText if newest.direct => newest.said.clone(),
-                Privacy::SenderAndText => format!("{}: {}", newest.from_label, newest.said),
-                Privacy::SenderOnly | Privacy::FactOnly => {
+            // **A mention says that it is one.** The running client gives a
+            // mention its own words (`sigil_chat::mention_said`, "X
+            // mentioned you in #room") and treats it as its own kind of
+            // event; this said "X sent a message" like anything else. On a
+            // phone the wake window is the path that usually speaks, so the
+            // one notification somebody most needs to tell apart from the
+            // rest was the one that looked like all of them.
+            //
+            // The newest arrival that mentions them, not the newest arrival
+            // — "ann mentioned you" is wrong if ann simply spoke last after
+            // somebody else did the mentioning. The count below still counts
+            // everything.
+            let mention = together.iter().rev().find(|a| a.mentions_me).copied();
+            let mut body = match (mention, privacy) {
+                (Some(m), Privacy::SenderAndText) => {
+                    format!("{} mentioned you: {}", m.from_label, m.said)
+                }
+                // Who, and that it was a mention, is still "who wrote" --
+                // and nothing of what was said.
+                (Some(m), Privacy::SenderOnly | Privacy::FactOnly) => {
+                    format!("{} mentioned you", m.from_label)
+                }
+                (None, Privacy::SenderAndText) if newest.direct => newest.said.clone(),
+                (None, Privacy::SenderAndText) => {
+                    format!("{}: {}", newest.from_label, newest.said)
+                }
+                (None, Privacy::SenderOnly | Privacy::FactOnly) => {
                     format!("{} sent a message", newest.from_label)
                 }
             };
@@ -120,6 +143,13 @@ pub fn compose(
 mod tests {
     use super::*;
     use sqnr_core::PubKey;
+
+    fn mention(channel: u8, seq: u64, from: &str, said: &str) -> Arrival {
+        Arrival {
+            mentions_me: true,
+            ..arrival(channel, seq, from, said, false)
+        }
+    }
 
     fn arrival(channel: u8, seq: u64, from: &str, said: &str, direct: bool) -> Arrival {
         Arrival {
@@ -225,6 +255,62 @@ mod tests {
         assert_eq!(dm.title, "cy");
         assert_eq!(dm.body, "hello");
         assert_eq!(dm.count, 1);
+    }
+
+    /// **A mention is told apart from any other message.**
+    ///
+    /// Awake, a mention has its own words and its own kind of event. Asleep
+    /// it read as "somebody sent a message", which on a phone is the path
+    /// that usually speaks -- so the notification somebody most needs to
+    /// pick out of a lock screen was the one that looked like the rest.
+    #[test]
+    fn a_mention_says_that_it_is_one() {
+        let arrivals = vec![
+            arrival(1, 5, "ann", "something", false),
+            mention(1, 6, "bram", "has anyone seen @me"),
+            arrival(1, 7, "ann", "and then this", false),
+        ];
+        let out = compose(&arrivals, Privacy::SenderAndText, &loud);
+        assert_eq!(out.len(), 1);
+        // **Bram, not ann.** Ann spoke last; bram did the mentioning, and
+        // naming the newest arrival would have credited the wrong person.
+        assert!(
+            out[0]
+                .body
+                .starts_with("bram mentioned you: has anyone seen @me"),
+            "{}",
+            out[0].body
+        );
+        assert!(out[0].body.ends_with("· and 2 more"), "{}", out[0].body);
+        assert_eq!(out[0].count, 3);
+
+        // Under sender-only, that it was a mention is still "who wrote".
+        let quiet = compose(&arrivals, Privacy::SenderOnly, &loud);
+        assert_eq!(quiet[0].body, "bram mentioned you · and 2 more");
+        assert!(!quiet[0].body.contains("anyone seen"));
+
+        // The control: the same conversation without the mention.
+        let plain = vec![
+            arrival(1, 5, "ann", "something", false),
+            arrival(1, 7, "ann", "and then this", false),
+        ];
+        let out = compose(&plain, Privacy::SenderAndText, &loud);
+        assert!(!out[0].body.contains("mentioned"), "{}", out[0].body);
+    }
+
+    /// And the quietest setting still names nobody: a mention is a message,
+    /// and "somebody mentioned you" is a great deal more than "something
+    /// arrived" to anyone reading over a shoulder.
+    #[test]
+    fn the_fact_of_a_message_does_not_leak_a_mention() {
+        let arrivals = vec![mention(1, 6, "bram", "@me are you there")];
+        let fact = compose(&arrivals, Privacy::FactOnly, &loud);
+        assert_eq!(fact.len(), 1);
+        assert_eq!(fact[0].channel, None);
+        assert_eq!(fact[0].body, "A new message");
+        for named in ["bram", "mentioned", "are you there"] {
+            assert!(!fact[0].body.contains(named), "{named}: {}", fact[0].body);
+        }
     }
 
     /// Sender-only carries no words; fact-only carries no sender and no
