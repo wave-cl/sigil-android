@@ -28,6 +28,23 @@ use sigil_chat::session::{self, Cmd, LinkState};
 use sigil_net::Dial;
 
 fn main() {
+    // **Without this the library says nothing.** Every `tracing::` call in
+    // sigil-chat, sigil-net and sqex-chat goes to a subscriber that is not
+    // installed, so this example printed byte-for-byte the same output with
+    // `RUST_LOG=sigil_chat=debug` set as without it. That is what a broken
+    // instrument looks like, and an afternoon of diagnosing a call that rang
+    // out and never arrived was spent reading its silence as evidence.
+    //
+    // `warn` by default, so an ordinary run stays as quiet as it was: what
+    // this example says for itself is its interface, and the library's log
+    // is what somebody asks for when that is not enough.
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")),
+        )
+        .with_writer(std::io::stderr)
+        .try_init();
     let args: Vec<String> = std::env::args().collect();
     let Some(identity) = args.get(1) else {
         eprintln!("usage: answer <identity-file> [exchange] [hold-secs] [wait-before-answering]");
@@ -63,7 +80,32 @@ fn main() {
     };
     // Its own store, so this never takes the lock off a client that is
     // already running as the same identity.
-    let store = std::env::temp_dir().join(format!("sigil-answer-{}", std::process::id()));
+    // **One store per identity, not one per run.** This was keyed by the pid,
+    // so every invocation minted a fresh store -- and a fresh store publishes
+    // a fresh batch of SIP-23 one-time prekeys for the account, then throws
+    // the private halves away with the temp directory. `MAX_PUBLISH` is 64
+    // and `MAX_STORED` is 128, so the *second* run fills the pool and the
+    // third is refused `pool_full`, which this example reported as "never
+    // synced, or nothing to reach".
+    //
+    // The worse half is what happens before it fills: a sender takes one of
+    // the orphaned prekeys and seals its invitation to a key no living client
+    // holds the other half of. The call rings out and is never heard -- which
+    // is precisely the fault these examples exist to rule out, and they were
+    // causing it.
+    //
+    // The lock this path was avoiding is the *user's own* client, and a path
+    // under the temp directory is already clear of that; keying it by the
+    // identity keeps two different identities apart without minting a pool
+    // each time.
+    let store = std::env::temp_dir().join(format!(
+        "sigil-{}-{}",
+        "answer",
+        std::path::Path::new(identity)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("identity")
+    ));
     let layers = if exchange.is_empty() {
         sigil_net::discovery::layers(
             sigil_net::discovery::nothing_explicit(),

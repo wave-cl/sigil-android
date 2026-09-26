@@ -41,6 +41,23 @@ use sigil_chat::session::{self, Cmd, LinkState};
 use sigil_net::Dial;
 
 fn main() {
+    // **Without this the library says nothing.** Every `tracing::` call in
+    // sigil-chat, sigil-net and sqex-chat goes to a subscriber that is not
+    // installed, so this example printed byte-for-byte the same output with
+    // `RUST_LOG=sigil_chat=debug` set as without it. That is what a broken
+    // instrument looks like, and an afternoon of diagnosing a call that rang
+    // out and never arrived was spent reading its silence as evidence.
+    //
+    // `warn` by default, so an ordinary run stays as quiet as it was: what
+    // this example says for itself is its interface, and the library's log
+    // is what somebody asks for when that is not enough.
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")),
+        )
+        .with_writer(std::io::stderr)
+        .try_init();
     let args: Vec<String> = std::env::args().collect();
     let Some(identity) = args.get(1) else {
         eprintln!("usage: ring <identity-file> [exchange] [peer-key] [--yes] [ring-secs]");
@@ -71,7 +88,32 @@ fn main() {
     };
     // Its own store, so this never takes the lock off a client that is
     // already running as the same identity.
-    let store = std::env::temp_dir().join(format!("sigil-ring-{}", std::process::id()));
+    // **One store per identity, not one per run.** This was keyed by the pid,
+    // so every invocation minted a fresh store -- and a fresh store publishes
+    // a fresh batch of SIP-23 one-time prekeys for the account, then throws
+    // the private halves away with the temp directory. `MAX_PUBLISH` is 64
+    // and `MAX_STORED` is 128, so the *second* run fills the pool and the
+    // third is refused `pool_full`, which this example reported as "never
+    // synced, or nothing to reach".
+    //
+    // The worse half is what happens before it fills: a sender takes one of
+    // the orphaned prekeys and seals its invitation to a key no living client
+    // holds the other half of. The call rings out and is never heard -- which
+    // is precisely the fault these examples exist to rule out, and they were
+    // causing it.
+    //
+    // The lock this path was avoiding is the *user's own* client, and a path
+    // under the temp directory is already clear of that; keying it by the
+    // identity keeps two different identities apart without minting a pool
+    // each time.
+    let store = std::env::temp_dir().join(format!(
+        "sigil-{}-{}",
+        "ring",
+        std::path::Path::new(identity)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("identity")
+    ));
     let layers = if exchange.is_empty() {
         sigil_net::discovery::layers(
             sigil_net::discovery::nothing_explicit(),
@@ -120,16 +162,31 @@ fn main() {
         // not learned about yet cannot be called.
         let settle = Instant::now() + Duration::from_secs(15);
         let mut known = Vec::new();
+        let mut synced = false;
         while Instant::now() < settle {
             let state = handle.state();
             if state.synced {
+                synced = true;
                 known = state.conversations.clone();
                 break;
             }
             let _ = tokio::time::timeout(Duration::from_millis(200), handle.changed()).await;
         }
+        // **Which of the two, and what the session said about it.** This read
+        // "never synced, or nothing to reach" for both, which are not the
+        // same fault and do not have the same fix: one is the exchange not
+        // answering and the other is an identity with nobody to ring. An
+        // afternoon was spent reading the first as the second. `trouble` is
+        // the session's own word for why and was being thrown away.
+        if !synced {
+            match handle.state().trouble {
+                Some(why) => println!("the link is up but it never synced in 15s — {why}"),
+                None => println!("the link is up but it never synced in 15s, and said no reason"),
+            }
+            return;
+        }
         if known.is_empty() {
-            println!("never synced, or nothing to reach — there is nothing here to ring");
+            println!("synced, and this identity has no conversation to ring");
             return;
         }
         println!("{} conversation(s) known:", known.len());
