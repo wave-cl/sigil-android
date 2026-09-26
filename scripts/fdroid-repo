@@ -51,16 +51,28 @@ cp "$repo/android/play/icon-512.png" "$out/icon.png"
 
 # The versions, read from the APK names rather than named by hand, so a
 # release that is present is listed and one that is not cannot be.
-builds=""
+#
+# **Sorted by version code, never by the order the APKs arrived in.** A
+# shell glob orders them as text, where v0.1.9 comes after v0.1.11, and the
+# newest by that reckoning was 0.1.9: everything above it was then written
+# out above `CurrentVersionCode` and marked as a pre-release, which F-Droid
+# does not offer. The repository went live serving 0.1.9 as current.
+order="$out/.versions"
+: > "$order"
 for apk in "$@"; do
-    cp "$apk" "$out/repo/"
     name="$(basename "$apk")"
     v="${name#sigil-android-v}"; v="${v%.apk}"
     IFS=. read -r major minor patch <<<"$v"
-    code=$(( major * 1000000 + minor * 1000 + patch ))
+    printf '%s %s %s\n' "$(( major * 1000000 + minor * 1000 + patch ))" "$v" "$apk" >> "$order"
+done
+
+builds=""
+while read -r code v apk; do
+    cp "$apk" "$out/repo/"
     builds="$builds  - versionName: $v"$'\n'"    versionCode: $code"$'\n'
     latest_name="$v"; latest_code="$code"
-done
+done < <(sort -n "$order")
+rm -f "$order"
 
 {
     cat "$repo/fdroid/org.squic.sigil.yml"
@@ -96,6 +108,13 @@ d = json.load(open(index))
 p = d["packages"]["org.squic.sigil"]
 codes = sorted(v["manifest"]["versionCode"] for v in p["versions"].values())
 assert latest in codes, f"{latest} is not in the index: {codes}"
+# Not just "present": the newest. Saying some older version is current
+# pushes everything above it into a channel clients do not offer, which is
+# how this repository first went live serving a version two behind.
+assert latest == max(codes), f"{latest} is listed as current but {max(codes)} is newer"
+beta = sorted(v["manifest"]["versionCode"] for v in p["versions"].values()
+              if v.get("releaseChannels"))
+assert not beta, f"these are marked pre-release, so clients will not offer them: {beta}"
 missing = [v["manifest"]["versionCode"] for v in p["versions"].values()
            if not (v.get("whatsNew") or {}).get("en-US")]
 assert not missing, f"no changelog reached these versions: {sorted(missing)}"
