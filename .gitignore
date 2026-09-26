@@ -8,3 +8,11 @@
 /android/gradlew
 /android/gradlew.bat
 /android/gradle/wrapper/gradle-wrapper.jar
+
+# Written beside a snapshot by egui_kittest when the compare fails: the run's
+# own render and the difference against the committed PNG. For looking at,
+# never for keeping -- sigil's tree carried six of them into commits before
+# it said so.
+**/tests/snapshots/*.old.png
+**/tests/snapshots/*.diff.png
+**/tests/snapshots/*.new.png
