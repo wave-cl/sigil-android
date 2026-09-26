@@ -51,6 +51,16 @@ fn main() {
             std::process::exit(1);
         }
     };
+    // A second one for the media call: `session::start` takes the first, and
+    // a signer is cheap to expand from the same file -- cheaper than keeping
+    // a seed in a second place.
+    let call_signer = match sqnr::identity::load(std::path::Path::new(identity), None) {
+        Ok(signer) => signer,
+        Err(why) => {
+            eprintln!("{identity}: {why}");
+            std::process::exit(1);
+        }
+    };
     // Its own store, so this never takes the lock off a client that is
     // already running as the same identity.
     let store = std::env::temp_dir().join(format!("sigil-answer-{}", std::process::id()));
@@ -157,9 +167,62 @@ fn main() {
             return;
         };
 
+        // **Answering is a signal; it is not a call.** A session signals the
+        // answer and nothing more -- carrying audio is a separate step, and
+        // `session` has no `CallOpts` anywhere in it because it never carries
+        // any. So this example answered the ring and left the phone talking
+        // into a call with nobody on the other end of the *media*: connected,
+        // and deaf, which is the state the card draws "nothing is coming
+        // through from the other side" for. Enough to bring the phone's audio
+        // session up, and not a call.
+        //
+        // This is the other half. The same two steps sigil's own `join_call`
+        // takes, on the connection this session already holds.
+        //
+        // **A tone in and nothing out**, so this machine opens neither a
+        // microphone nor a speaker: the far end of a test call has no room to
+        // listen to and nothing to play. The phone's own microphone still
+        // opens -- that is the thing being tested and there is no way around
+        // it -- so somebody has to be in the room with it.
+        let room = sigil_net::RoomId::new(ring.secret);
+        let call = sigil_net::spawn_dm_call(
+            sigil_net::Dial::On(handle.connection()),
+            call_signer,
+            ring.from,
+            room,
+            // Relayed: an introduction (SIP-25) would hand this machine's
+            // address to the phone, and a throwaway test peer has no business
+            // doing that.
+            false,
+            sigil_net::CallOpts {
+                source: sigil_net::Source::Tone,
+                sink: sigil_net::Sink::Null,
+                ..sigil_net::CallOpts::default()
+            },
+            || {},
+        );
+
         println!("answered. holding for {hold:?} — read the phone's audio state now.");
-        tokio::time::sleep(hold).await;
+        // Say what the media is doing, not just that time passed: a call that
+        // never reached `Live` is the failure this example exists to catch,
+        // and it looks exactly like a working one from a `sleep`.
+        let until = Instant::now() + hold;
+        let mut said = String::new();
+        while Instant::now() < until {
+            let state = call.state();
+            let now = format!(
+                "{:?}{}",
+                state.phase,
+                if state.deaf { " (deaf)" } else { "" }
+            );
+            if now != said {
+                println!("  media: {now}");
+                said = now;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
         println!("hanging up");
+        call.hang_up();
         handle.send(Cmd::Hangup {
             channel: ring.channel,
             seq: ring.seq,
