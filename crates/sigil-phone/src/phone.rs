@@ -46,6 +46,18 @@ pub trait Phone: Send + Sync {
     /// The same bug `withdraw_gone`'s own comment describes as fixed —
     /// fixed on the path that was awake.
     fn unring(&self, channel: &[u8; 32]);
+
+    /// Take down what was said about a conversation, because it has been
+    /// read.
+    ///
+    /// **Read somewhere else.** A window runs while the phone is asleep and
+    /// nobody is reading on *it* — but an account has more than one device
+    /// (SIP-20), and a conversation read on another moves the cursor this
+    /// one reads on its next wake. The notice a previous window posted is
+    /// then about something already read, and nothing would have taken it
+    /// down: a window keeps no record between wakes, and the running client
+    /// only sweeps what its own process posted.
+    fn unnotify(&self, channel: &[u8; 32]);
 }
 
 /// A phone that remembers what it was asked to show. For tests.
@@ -54,6 +66,7 @@ pub struct Fake {
     pub notified: Mutex<Vec<Notification>>,
     pub rang: Mutex<Vec<Ring>>,
     pub unrang: Mutex<Vec<[u8; 32]>>,
+    pub unnotified: Mutex<Vec<[u8; 32]>>,
 }
 
 impl Fake {
@@ -71,6 +84,14 @@ impl Fake {
     /// Which rings it was asked to take down.
     pub fn unrings(&self) -> Vec<[u8; 32]> {
         self.unrang
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    /// Which notices it was asked to take down.
+    pub fn unnotifies(&self) -> Vec<[u8; 32]> {
+        self.unnotified
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .clone()
@@ -96,6 +117,13 @@ impl Phone for Fake {
 
     fn unring(&self, channel: &[u8; 32]) {
         self.unrang
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(*channel);
+    }
+
+    fn unnotify(&self, channel: &[u8; 32]) {
+        self.unnotified
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .push(*channel);

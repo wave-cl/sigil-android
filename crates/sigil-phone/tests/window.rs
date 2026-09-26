@@ -492,6 +492,17 @@ async fn a_phone_is_woken_for_a_message_and_says_it_once_after_writing_it() {
         "the ring was left on the shade with nothing able to remove it: {:?}",
         fake.unrings()
     );
+    // **And what was said about a conversation that is read.** Nobody is
+    // reading on a sleeping phone, but an account has more than one device
+    // and a conversation read on another moves the cursor this one reads
+    // here — so a notice a previous window posted is about something
+    // already read, and a window keeps no record between wakes to find it
+    // by. Everything in this store has been read by now.
+    assert!(
+        fake.unnotifies().contains(&second.channel),
+        "a notice about a read conversation was left on the shade: {:?}",
+        fake.unnotifies()
+    );
 
     let _ = friend.close();
 }

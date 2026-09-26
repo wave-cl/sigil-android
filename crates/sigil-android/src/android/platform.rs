@@ -146,6 +146,23 @@ pub fn end_ring(channel: &[u8; 32]) -> Result<(), String> {
     })
 }
 
+/// `Notifier.endMessage(context, channelHex)`: take down what was said about
+/// a conversation, because it has been read.
+pub fn end_message(channel: &[u8; 32]) -> Result<(), String> {
+    let channel = hex(channel);
+    with_env(|env, context| {
+        let class = bridge::class("Notifier")?;
+        let channel = jstring(env, &channel)?;
+        env.call_static_method(
+            class,
+            "endMessage",
+            "(Landroid/content/Context;Ljava/lang/String;)V",
+            &[JValue::Object(context), JValue::Object(&channel)],
+        )?;
+        Ok(())
+    })
+}
+
 pub fn post_ring(
     identity: &str,
     exchange: &str,
@@ -267,6 +284,15 @@ impl Notify for AndroidNotifier {
     }
 
     /// `Notifier.endRing`: the call that had never been made from anywhere.
+    /// `Notifier.endMessage`: the notice about a conversation that has been
+    /// read. Quietly -- it is swept once per conversation as it is read, and
+    /// cancelling one that is not there is the ordinary case.
+    fn withdraw_notice(&self, target: &Target) {
+        if let Err(why) = end_message(&target.channel) {
+            tracing::debug!("could not take a notice down: {why}");
+        }
+    }
+
     fn withdraw(&self, target: &Target) {
         if let Err(why) = end_ring(&target.channel) {
             tracing::warn!("could not take a ring down: {why}");
@@ -363,6 +389,15 @@ impl Phone for AndroidPhone {
         post_ring(&self.identity, &self.exchange, &r.channel, &r.label)
             .map_err(|why| tracing::warn!("could not ring: {why}"))
             .is_ok()
+    }
+
+    fn unnotify(&self, channel: &[u8; 32]) {
+        // Quietly, for the reason `unring` gives: it is swept over every
+        // read conversation on every wake, and cancelling a notice that is
+        // not there is the ordinary case.
+        if let Err(why) = end_message(channel) {
+            tracing::debug!("could not take a notice down: {why}");
+        }
     }
 
     fn unring(&self, channel: &[u8; 32]) {

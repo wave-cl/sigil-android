@@ -349,6 +349,25 @@ pub async fn run(window: Window, phone: &dyn Phone) -> Outcome {
             if !live.contains(&convo.channel) {
                 phone.unring(&convo.channel);
             }
+            // **And what was said about a conversation read somewhere
+            // else.** Nobody is reading on a sleeping phone, but an account
+            // has more than one device (SIP-20) and a conversation read on
+            // another moves the cursor this one reads here. The notice a
+            // previous window posted is then about something already read,
+            // and nothing else would take it down: a window keeps no record
+            // between wakes, and the running client sweeps only what its own
+            // process posted.
+            if convo.unread == 0 {
+                phone.unnotify(&convo.channel);
+            }
+            // **And what was said about a conversation read somewhere
+            // else.** Nobody is reading on a sleeping phone, but an account
+            // has more than one device (SIP-20) and a conversation read on
+            // another moves the cursor this one reads here. The notice a
+            // previous window posted is then about something already read,
+            // and nothing else would take it down: a window keeps no record
+            // between wakes, and the running client sweeps only what its own
+            // process posted.
         }
         // **And take down the ones that have stopped ringing.**
         //

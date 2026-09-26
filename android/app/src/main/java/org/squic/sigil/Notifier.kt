@@ -188,4 +188,23 @@ object Notifier {
     fun endRing(ctx: Context, channelHex: String) {
         ctx.getSystemService(NotificationManager::class.java).cancel(channelHex, 2)
     }
+
+    /**
+     * Take down what was said about a conversation, because it has been
+     * read.
+     *
+     * **A ring could be withdrawn and a message could not.** One notice is
+     * posted per conversation and only the ring had a way down, so reading a
+     * conversation in the window left its notification on the shade — and
+     * the only ways to be rid of it were to tap it, which opens the
+     * conversation just finished, or to swipe each one away by hand.
+     *
+     * The same tag the notice was posted under, and the id beside the
+     * ring's: `message` uses 1 and `ring` uses 2, so a conversation can have
+     * both and lose them one at a time.
+     */
+    @JvmStatic
+    fun endMessage(ctx: Context, channelHex: String) {
+        ctx.getSystemService(NotificationManager::class.java).cancel(channelHex, 1)
+    }
 }
