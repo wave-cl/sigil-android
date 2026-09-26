@@ -37,7 +37,10 @@ object Native {
      * completion on the calling thread, which must not be the main one.
      * `seq` is the invitation's, or -1 where the notification did not carry
      * it and the live ring in the conversation is the one to refuse.
-     * Returns a one-line report for the log.
+     *
+     * **Returns whether the refusal actually went out**, so the caller can
+     * put the ring back when it did not. The detail is in the log; a caller
+     * that had to read prose to decide would one day read it wrong.
      */
     external fun decline(
         filesDir: String,
@@ -45,7 +48,7 @@ object Native {
         channelHex: String,
         seq: Long,
         budgetSecs: Int,
-    ): String
+    ): Boolean
 
     /** A notification was pressed: which account, exchange and conversation it led to. */
     external fun pressed(identity: String, exchange: String, channelHex: String, answer: Boolean)

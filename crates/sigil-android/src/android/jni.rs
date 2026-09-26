@@ -210,7 +210,7 @@ pub extern "system" fn Java_org_squic_sigil_Native_decline(
     channel: JString,
     seq: jni::sys::jlong,
     budget_secs: jint,
-) -> jstring {
+) -> jni::sys::jboolean {
     let files_dir = std::path::PathBuf::from(bridge::string_from(&mut env, &files_dir));
     let exchange = bridge::string_from(&mut env, &exchange);
     let channel = bridge::string_from(&mut env, &channel);
@@ -219,7 +219,7 @@ pub extern "system" fn Java_org_squic_sigil_Native_decline(
     // Negative is "not known": the running client's notification carries a
     // `Target`, which has no `seq` in it, and the decline finds the ring.
     let seq = (seq >= 0).then_some(seq as u64);
-    let report = decline(
+    let (went, report) = decline(
         &files_dir,
         &exchange,
         &channel,
@@ -227,9 +227,10 @@ pub extern "system" fn Java_org_squic_sigil_Native_decline(
         budget_secs.max(3) as u64,
     );
     tracing::info!("{report}");
-    env.new_string(&report)
-        .map(|s| s.into_raw())
-        .unwrap_or(std::ptr::null_mut())
+    // **Yes or no, not a sentence to parse.** The caller has to put the ring
+    // back when this did not go out, and a caller deciding that by reading
+    // prose is one that will read it wrong one day.
+    u8::from(went)
 }
 
 fn decline(
@@ -238,16 +239,16 @@ fn decline(
     channel_hex: &str,
     seq: Option<u64>,
     budget_secs: u64,
-) -> String {
+) -> (bool, String) {
     let Some(channel) = channel_from_hex(channel_hex) else {
-        return format!("not a conversation: {channel_hex:?}");
+        return (false, format!("not a conversation: {channel_hex:?}"));
     };
     let account = match identity::ensure(&Where::under(home), &AndroidVault) {
         Ok(opened) => opened.account,
-        Err(why) => return format!("no identity to decline with: {why}"),
+        Err(why) => return (false, format!("no identity to decline with: {why}")),
     };
     let Some(unlocked) = account.unlocked() else {
-        return "the identity did not unlock".to_string();
+        return (false, "the identity did not unlock".to_string());
     };
     // The same dial the window uses: a named exchange as itself, the
     // default one through whatever the identity's own handle and
@@ -270,21 +271,29 @@ fn decline(
         .build()
     {
         Ok(r) => r,
-        Err(e) => return format!("no runtime: {e}"),
+        Err(e) => return (false, format!("no runtime: {e}")),
     };
     let mut window = Window::new(Dial::Discover(layers), unlocked.signer());
     window.budget = Duration::from_secs(budget_secs);
     window.exchange = exchange.to_string();
     let out = runtime.block_on(sigil_phone::window::decline(window, channel, seq));
-    format!(
+    // **The store lock is the failure to expect.** sigil's own session holds
+    // it whenever the application is alive -- which, with the reachable
+    // service on, is most of the time, and is exactly when a call is refused
+    // from the shade rather than from the screen. Saying so lets the caller
+    // put the ring back, rather than leaving it gone with the far end still
+    // ringing.
+    let report = format!(
         "declined={} connected={} took={:?}{}",
         out.declined,
         out.connected,
         out.took,
         out.trouble
+            .as_deref()
             .map(|t| format!(" trouble={t}"))
             .unwrap_or_default()
-    )
+    );
+    (out.declined, report)
 }
 
 /// A conversation as a notification spells it: sixty-four hex characters.

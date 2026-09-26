@@ -139,8 +139,12 @@ object Notifier {
             ctx,
             channelHex.hashCode() xor 0x0DEC,
             Intent(ctx, DeclineReceiver::class.java).apply {
+                putExtra(EXTRA_IDENTITY, identity)
                 putExtra(EXTRA_EXCHANGE, exchange)
                 putExtra(EXTRA_CHANNEL, channelHex)
+                // So a refusal that could not go out can post the same ring
+                // again, rather than a nameless one.
+                putExtra(DeclineReceiver.EXTRA_FROM, from)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
