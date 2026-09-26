@@ -17,37 +17,18 @@ use std::collections::BTreeMap;
 
 use sigil_chat::session::Arrival;
 
-/// How much a notification says. The phone MUST offer all three (SIP-47);
-/// which is the default is the phone's to choose, and this crate does not.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Privacy {
-    /// Who, and what they said.
-    #[default]
-    SenderAndText,
-    /// Who, and that they said something.
-    SenderOnly,
-    /// That something was said. One notification for the whole window,
-    /// naming no conversation -- the platform learns as little as the
-    /// distributor did.
-    FactOnly,
-}
-
-impl Privacy {
-    pub const ALL: [Privacy; 3] = [
-        Privacy::SenderAndText,
-        Privacy::SenderOnly,
-        Privacy::FactOnly,
-    ];
-
-    /// For a settings row.
-    pub fn describe(self) -> &'static str {
-        match self {
-            Privacy::SenderAndText => "who wrote, and what they said",
-            Privacy::SenderOnly => "who wrote, and nothing of what",
-            Privacy::FactOnly => "only that something arrived",
-        }
-    }
-}
+/// How much a notification says (SIP-47): the phone MUST offer all three,
+/// and which is the default is the client's to choose.
+///
+/// **Defined in `sigil::prefs` rather than here.** It was here, because this
+/// crate composes the wake window's notifications and nothing else needed
+/// it -- which was the mistake. The running client composes notifications
+/// too, in `sigil_chat::announce`, and knew nothing about the setting: a
+/// phone told to say only that something had arrived said who and what for
+/// as long as its process was alive, which with the reachable service on is
+/// most of the time. One type, in the crate both paths already depend on,
+/// is what keeps the two answers the same.
+pub use sigil::prefs::Privacy;
 
 /// One notification: what it says, and where a press on it leads.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,6 +1,13 @@
 //! What the person chose, kept as a small JSON file beside sigil's other
-//! state. The one setting SIP-47 requires the phone to offer is how much a
-//! notification says; the rest are the phone's own.
+//! state: how long a wake endpoint lives, and whether to stay reachable
+//! without a distributor. Both are the phone's own.
+//!
+//! **What a notification says is no longer one of them.** SIP-47 requires
+//! the phone to offer it and it was kept here, where the wake window could
+//! read it with no app around -- and where the running client, which
+//! composes notifications of its own, could not. It is a sigil preference
+//! now, read from the same directory by both; the field below carries an
+//! upgrading phone's choice across and is then cleared.
 
 use std::path::{Path, PathBuf};
 
@@ -9,10 +16,17 @@ use sigil_phone::Privacy;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
-    /// How much a notification says. SIP-47 leaves the default to the
-    /// phone; this one says who and what, since a person who wants less
-    /// has a setting and a person who wants more has none.
-    pub privacy: PrivacySetting,
+    /// **Where this setting used to live.** It is sigil's preference now
+    /// (`sigil::prefs::Privacy`), because the wake window was not the only
+    /// thing composing notifications and the other path could not see a
+    /// value kept here. Read once on the next start and cleared; `None`
+    /// afterwards, and on a phone that never had it.
+    ///
+    /// Carried across rather than dropped, because the direction the
+    /// default falls is *more* said on a locked screen: a person who chose
+    /// less and was quietly given everything back would not be told.
+    #[serde(default)]
+    pub privacy: Option<Privacy>,
     /// How long the exchange keeps the wake endpoint, in days. SIP-45 caps
     /// it at 30; a phone that connects daily could ask for less, and one
     /// left in a drawer wants all of it.
@@ -25,40 +39,10 @@ pub struct Settings {
     pub stay_reachable: bool,
 }
 
-/// [`Privacy`], with a serde derive it does not carry itself.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum PrivacySetting {
-    #[default]
-    SenderAndText,
-    SenderOnly,
-    FactOnly,
-}
-
-impl From<PrivacySetting> for Privacy {
-    fn from(p: PrivacySetting) -> Privacy {
-        match p {
-            PrivacySetting::SenderAndText => Privacy::SenderAndText,
-            PrivacySetting::SenderOnly => Privacy::SenderOnly,
-            PrivacySetting::FactOnly => Privacy::FactOnly,
-        }
-    }
-}
-
-impl From<Privacy> for PrivacySetting {
-    fn from(p: Privacy) -> PrivacySetting {
-        match p {
-            Privacy::SenderAndText => PrivacySetting::SenderAndText,
-            Privacy::SenderOnly => PrivacySetting::SenderOnly,
-            Privacy::FactOnly => PrivacySetting::FactOnly,
-        }
-    }
-}
-
 impl Default for Settings {
     fn default() -> Settings {
         Settings {
-            privacy: PrivacySetting::default(),
+            privacy: None,
             endpoint_days: 30,
             stay_reachable: false,
         }
@@ -102,19 +86,39 @@ mod tests {
         let path = Settings::path_under(dir.path());
         assert_eq!(Settings::load(&path), Settings::default());
         let mine = Settings {
-            privacy: PrivacySetting::FactOnly,
+            privacy: None,
             endpoint_days: 7,
             stay_reachable: true,
         };
         mine.save(&path).unwrap();
         assert_eq!(Settings::load(&path), mine);
-        assert_eq!(Privacy::from(mine.privacy), Privacy::FactOnly);
         std::fs::write(&path, b"{not json").unwrap();
         assert_eq!(Settings::load(&path), Settings::default());
         // A file from before `stay_reachable` existed reads as not chosen.
         std::fs::write(&path, br#"{"privacy":"sender_only","endpoint_days":7}"#).unwrap();
-        let older = Settings::load(&path);
-        assert_eq!(older.privacy, PrivacySetting::SenderOnly);
-        assert!(!older.stay_reachable);
+        assert!(!Settings::load(&path).stay_reachable);
+    }
+
+    /// **A choice this phone already made is carried across, not dropped.**
+    ///
+    /// What a notification may say lived here, where only the wake window
+    /// could read it; it is a sigil preference now, which both the wake
+    /// window and the running client read. A file written by the build
+    /// before this one spells it exactly as it always did -- and the
+    /// default it would otherwise fall back to says *more* on a locked
+    /// screen, not less, so reading it is not optional.
+    #[test]
+    fn an_older_file_still_carries_what_a_notification_may_say() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = Settings::path_under(dir.path());
+        std::fs::write(&path, br#"{"privacy":"fact_only","endpoint_days":7}"#).unwrap();
+        assert_eq!(Settings::load(&path).privacy, Some(Privacy::FactOnly));
+
+        // And once carried, gone from here: two stores for one setting is
+        // two answers to what a locked screen may show.
+        let mut carried = Settings::load(&path);
+        assert_eq!(carried.privacy.take(), Some(Privacy::FactOnly));
+        carried.save(&path).unwrap();
+        assert_eq!(Settings::load(&path).privacy, None);
     }
 }

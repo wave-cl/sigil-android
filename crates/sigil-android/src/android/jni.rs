@@ -70,6 +70,7 @@ fn wake(home: &std::path::Path, endpoint: Option<String>, budget_secs: u64) -> S
     };
     let me = unlocked.me();
     let settings = Settings::load(&Settings::path_under(&crate::host::data_dir()));
+    let prefs = sigil::Prefs::load();
     let accounts = sigil::Accounts::load();
     let exchanges: Vec<String> = accounts
         .all()
@@ -106,7 +107,12 @@ fn wake(home: &std::path::Path, endpoint: Option<String>, budget_secs: u64) -> S
         let dial = Dial::Discover(layers);
         let mut window = Window::new(dial, unlocked.signer());
         window.budget = per_exchange;
-        window.privacy = settings.privacy.into();
+        // **The same value the running client composes by.** Loaded from
+        // sigil's preferences in this same directory rather than from the
+        // phone's own file: two stores for one setting is two answers to
+        // "what may a locked screen say", and the one this window used to
+        // read was the one the client ignored.
+        window.privacy = prefs.privacy;
         window.distributor = endpoint.as_ref().map(|url| Distributor {
             url: url.clone(),
             ttl_secs: settings.endpoint_days.clamp(1, 30) * 24 * 60 * 60,

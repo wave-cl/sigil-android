@@ -6,6 +6,9 @@ license.workspace = true
 description = "What makes sigil a phone client (SIP-47): pairing, the wake window, and notifications composed from plaintext the phone alone opened. No JNI here -- everything tests on a desktop against a real exchange."
 
 [dependencies]
+# For `sigil::prefs::Privacy`: one setting, in the crate both composing
+# paths depend on. See `notify::Privacy`.
+sigil = { workspace = true }
 sigil-net = { workspace = true }
 sigil-chat = { workspace = true }
 sqex-chat = { workspace = true }

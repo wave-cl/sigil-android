@@ -102,7 +102,23 @@ impl Host {
             ));
         }
         let settings_at = Settings::path_under(&data_dir());
-        let settings = Settings::load(&settings_at);
+        let mut settings = Settings::load(&settings_at);
+        // **A setting that moved, carried across.** What a notification may
+        // say (SIP-47) was kept in the phone's own file, where the wake
+        // window could read it without an app and the running client --
+        // which composes notifications of its own -- could not. It is a
+        // sigil preference now. A phone upgrading has its choice in the old
+        // field and nothing in the new one, and the direction the default
+        // falls is *more* said on a locked screen, so this is not a
+        // migration to leave for later: it runs once, and clears the field
+        // so the two cannot disagree afterwards.
+        if let Some(chose) = settings.privacy.take() {
+            accounts.prefs.set_privacy(chose);
+            if remember {
+                accounts.prefs.save();
+                let _ = settings.save(&settings_at);
+            }
+        }
         let mut capabilities = capabilities;
         capabilities.push(Capability::new(
             "Key store",

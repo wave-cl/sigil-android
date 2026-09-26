@@ -11,11 +11,10 @@ use std::path::PathBuf;
 
 use sigil::app::{App, AppContext, AppResponse};
 use sigil::{ColorTheme, tokens};
-use sigil_phone::Privacy;
 use sigil_platform::Capability;
 
 use crate::host::Shared;
-use crate::settings::{PrivacySetting, Settings};
+use crate::settings::Settings;
 
 /// What keeps the process alive with its connection open, or lets it go:
 /// the platform's foreground service on the phone, nothing on a desktop
@@ -84,6 +83,9 @@ impl App for PhoneApp {
 
     fn render(&mut self, ctx: &mut AppContext<'_>, ui: &mut egui::Ui) -> AppResponse {
         let theme = ColorTheme::current(ui.ctx());
+        // Read before the body, which borrows `self`: what notifications
+        // may say is sigil's preference, shown here and set in Chat.
+        let privacy = ctx.accounts.prefs.privacy;
         egui::ScrollArea::vertical().show(ui, |ui| {
             ui.heading("This phone");
             ui.add_space(tokens::SPACING_SM);
@@ -156,15 +158,18 @@ impl App for PhoneApp {
                 )
                 .small(),
             );
-            let mut privacy = self.settings.privacy;
-            for choice in Privacy::ALL {
-                let setting = PrivacySetting::from(choice);
-                ui.radio_value(&mut privacy, setting, choice.describe());
-            }
-            if privacy != self.settings.privacy {
-                self.settings.privacy = privacy;
-                self.save();
-            }
+            // **Read back, not set here.** It was three radio buttons, and
+            // they wrote the phone's own settings file -- which the wake
+            // window reads and the running client does not, so the choice
+            // held while the phone slept and not while it was awake. It is
+            // one setting in Chat's own settings now, and this says what it
+            // currently is, because a preference with no readout is one
+            // somebody has to remember.
+            ui.colored_label(theme.text_secondary, privacy.describe());
+            ui.colored_label(
+                theme.text_muted,
+                egui::RichText::new("Set in Chat, under Settings.").small(),
+            );
 
             ui.add_space(tokens::SPACING_XL);
             ui.heading("Being woken");
