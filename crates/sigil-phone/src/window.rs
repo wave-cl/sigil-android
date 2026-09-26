@@ -209,7 +209,13 @@ pub async fn run(window: Window, phone: &dyn Phone) -> Outcome {
             }
         }
         for ring in handle.ringing() {
-            if ring.mine || ring.answered {
+            // **A muted conversation does not ring either.** Awake,
+            // `sigil_chat::announce` puts its rings through the same
+            // `Quiet::silenced` before posting one. Asleep this did not --
+            // so do-not-disturb, which is the setting somebody turns on
+            // precisely to stop a phone ringing, silenced the messages and
+            // let the calls through.
+            if ring.mine || ring.answered || silenced(&ring.channel) {
                 continue;
             }
             let ring = Ring {

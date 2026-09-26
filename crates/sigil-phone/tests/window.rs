@@ -372,5 +372,17 @@ async fn a_phone_is_woken_for_a_message_and_says_it_once_after_writing_it() {
     let rang = fake.rings();
     assert_eq!(rang[0].from, friend_id);
     assert!(rang[0].direct);
+
+    // **And a muted conversation does not ring.** The same call, still
+    // ringing, with the conversation silenced. `silenced` is
+    // `dnd || is_muted`, so this is also the do-not-disturb path -- the one
+    // setting somebody turns on precisely to stop a phone ringing, which
+    // until now stopped the messages and let the calls through.
+    let fake = Fake::default();
+    let mut hushed = window(endpoint, signer(1).0, &phone_store, &push);
+    hushed.quiet.set_muted("", &rang[0].channel, true);
+    let out = sigil_phone::window::run(hushed, &fake).await;
+    assert_eq!(out.rang, 0, "a muted conversation rang the phone: {out:?}");
+    assert!(fake.rings().is_empty(), "{:?}", fake.rings());
     let _ = friend.close();
 }
