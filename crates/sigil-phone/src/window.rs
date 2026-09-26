@@ -59,6 +59,15 @@ pub struct Window {
     /// conversation list, since the per-channel fetches follow it.
     pub settle: Duration,
     pub privacy: Privacy,
+    /// What this person has muted, and whether they are on do-not-disturb.
+    /// Read from the same `quiet.json` the running client writes; a wake
+    /// window that ignored it would wake the phone for the one
+    /// conversation they said not to.
+    pub quiet: sigil::Quiet,
+    /// Which exchange this window is for, as the roster names it -- empty
+    /// for the identity's default one. A mute is keyed by exchange *and*
+    /// channel, so this has to be the same string the client muted under.
+    pub exchange: String,
 }
 
 impl Window {
@@ -72,6 +81,8 @@ impl Window {
             budget: Duration::from_secs(20),
             settle: Duration::from_secs(1),
             privacy: Privacy::default(),
+            quiet: sigil::Quiet::default(),
+            exchange: String::new(),
         }
     }
 }
@@ -189,7 +200,10 @@ pub async fn run(window: Window, phone: &dyn Phone) -> Outcome {
     if out.connected {
         let unseen = handle.unseen();
         out.arrivals = unseen.len();
-        for notification in notify::compose(&unseen, window.privacy) {
+        let quiet = window.quiet.clone();
+        let exchange = window.exchange.clone();
+        let silenced = move |channel: &[u8; 32]| quiet.silenced(&exchange, channel);
+        for notification in notify::compose(&unseen, window.privacy, &silenced) {
             if phone.notify(&notification) {
                 out.notified += 1;
             }

@@ -313,6 +313,9 @@ async fn a_phone_is_woken_for_a_message_and_says_it_once_after_writing_it() {
     assert_eq!(said.len(), 1, "{said:?}");
     assert_eq!(said[0].count, 3);
     assert!(said[0].body.starts_with("three"), "{}", said[0].body);
+    let channel = said[0]
+        .channel
+        .expect("a notification names its conversation");
 
     // Under the quiet setting, neither who nor where.
     friend.send(Cmd::Send("four".into()));
@@ -326,6 +329,34 @@ async fn a_phone_is_woken_for_a_message_and_says_it_once_after_writing_it() {
     assert_eq!(said[0].channel, None);
     assert_eq!(said[0].body, "A new message");
     assert!(!said[0].body.contains("four"));
+
+    // **Muted: the same conversation wakes nothing.** The running client
+    // has always checked this; the wake window did not, so a conversation
+    // somebody muted was silent while they were looking and woke them while
+    // they were not. The mute is keyed by exchange *and* channel, so this
+    // also pins that the window looks it up under the string the client
+    // muted with -- empty for the identity's default exchange, and a
+    // mismatch there would fail silently, which is the worst way for a mute
+    // to fail.
+    friend.send(Cmd::Send("five".into()));
+    assert!(until(|| friend.state().lines.iter().any(|l| l.text == "five"), 15).await);
+    let fake = Fake::default();
+    let mut muted = window(endpoint, signer(1).0, &phone_store, &push);
+    muted.quiet.set_muted("", &channel, true);
+    let out = sigil_phone::window::run(muted, &fake).await;
+    // The precondition, or this proves nothing: the message *did* arrive
+    // and was written; a window that fetched nothing would also notify
+    // nothing.
+    assert_eq!(out.arrivals, 1, "the message should still arrive: {out:?}");
+    assert_eq!(
+        out.notified, 0,
+        "a muted conversation woke the phone: {out:?}"
+    );
+    assert!(
+        fake.notifications().is_empty(),
+        "{:?}",
+        fake.notifications()
+    );
 
     // A call rings.
     friend.send(Cmd::Call { direct: false });

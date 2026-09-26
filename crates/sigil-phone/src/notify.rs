@@ -47,7 +47,27 @@ pub struct Notification {
 /// One notification per channel, naming the newest, with a count -- or one
 /// notification for everything, under [`Privacy::FactOnly`]. Nothing for
 /// nothing.
-pub fn compose(arrivals: &[Arrival], privacy: Privacy) -> Vec<Notification> {
+pub fn compose(
+    arrivals: &[Arrival],
+    privacy: Privacy,
+    silenced: &dyn Fn(&[u8; 32]) -> bool,
+) -> Vec<Notification> {
+    // **Muted here too, not only while the phone is awake.** A running
+    // client checks `Quiet::silenced` before it says anything
+    // (`sigil_chat::announce`); this path did not, so a conversation
+    // somebody muted was silent while they were looking at it and woke the
+    // phone while they were not -- which is the half that matters, and the
+    // opposite of what they asked for. Do-not-disturb is in the same rule.
+    //
+    // Applied here rather than by the caller because a caller can forget,
+    // and because it has to happen before the counting: mute everything and
+    // even the quietest setting should say nothing at all.
+    let arrivals: Vec<Arrival> = arrivals
+        .iter()
+        .filter(|a| !silenced(&a.channel))
+        .cloned()
+        .collect();
+    let arrivals = &arrivals[..];
     if arrivals.is_empty() {
         return Vec::new();
     }
@@ -120,11 +140,68 @@ mod tests {
         }
     }
 
+    /// Nothing muted, and not on do-not-disturb: what the tests that came
+    /// before the mute was honoured all meant.
+    fn loud(_channel: &[u8; 32]) -> bool {
+        false
+    }
+
     /// A wake that found nothing composes nothing (SIP-47).
     #[test]
     fn nothing_new_says_nothing() {
         for privacy in Privacy::ALL {
-            assert!(compose(&[], privacy).is_empty(), "{privacy:?}");
+            assert!(compose(&[], privacy, &loud).is_empty(), "{privacy:?}");
+        }
+    }
+
+    /// **A muted conversation does not wake the phone either.**
+    ///
+    /// The running client checks `Quiet::silenced` before it says anything;
+    /// this path did not, so a conversation somebody muted was silent while
+    /// they were looking at it and woke them while they were not. With a
+    /// control, because a filter that dropped *everything* would pass every
+    /// assertion below.
+    #[test]
+    fn a_muted_conversation_says_nothing() {
+        let arrivals = vec![
+            arrival(1, 5, "ann", "in the muted room", false),
+            arrival(2, 9, "cy", "in the other one", true),
+        ];
+        let muted_one = |c: &[u8; 32]| *c == [1u8; 32];
+
+        let out = compose(&arrivals, Privacy::SenderAndText, &muted_one);
+        assert_eq!(out.len(), 1, "only the unmuted one: {out:?}");
+        assert_eq!(out[0].channel, Some([2; 32]));
+        assert!(!out[0].body.contains("muted room"));
+
+        // The control: with nothing muted the same arrivals make two.
+        assert_eq!(compose(&arrivals, Privacy::SenderAndText, &loud).len(), 2);
+    }
+
+    /// **Silenced before counted.** Under the quietest setting a muted
+    /// conversation must not even raise the count -- "3 new messages" for
+    /// three messages in the one room somebody muted is the mute failing
+    /// quietly rather than loudly.
+    #[test]
+    fn a_muted_conversation_is_not_counted_either() {
+        let arrivals = vec![
+            arrival(1, 5, "ann", "one", false),
+            arrival(1, 6, "ann", "two", false),
+            arrival(2, 9, "cy", "three", true),
+        ];
+        let muted_one = |c: &[u8; 32]| *c == [1u8; 32];
+        let fact = compose(&arrivals, Privacy::FactOnly, &muted_one);
+        assert_eq!(fact.len(), 1);
+        assert_eq!(fact[0].body, "A new message", "the muted two are not in it");
+        assert_eq!(fact[0].count, 1);
+
+        // Everything muted: a wake that found nothing it may speak of says
+        // nothing at all, as one that found nothing does.
+        for privacy in Privacy::ALL {
+            assert!(
+                compose(&arrivals, privacy, &|_| true).is_empty(),
+                "{privacy:?}"
+            );
         }
     }
 
@@ -137,7 +214,7 @@ mod tests {
             arrival(1, 6, "ann", "second", false),
             arrival(2, 9, "cy", "hello", true),
         ];
-        let out = compose(&arrivals, Privacy::SenderAndText);
+        let out = compose(&arrivals, Privacy::SenderAndText, &loud);
         assert_eq!(out.len(), 2);
         let group = out.iter().find(|n| n.channel == Some([1; 32])).unwrap();
         assert_eq!(group.title, "the group");
@@ -158,20 +235,20 @@ mod tests {
             arrival(1, 5, "ann", "secret", false),
             arrival(2, 9, "cy", "secret too", true),
         ];
-        let sender = compose(&arrivals, Privacy::SenderOnly);
+        let sender = compose(&arrivals, Privacy::SenderOnly, &loud);
         assert_eq!(sender.len(), 2);
         for n in &sender {
             assert!(!n.body.contains("secret"), "{}", n.body);
             assert!(n.body.ends_with("sent a message"), "{}", n.body);
         }
-        let fact = compose(&arrivals, Privacy::FactOnly);
+        let fact = compose(&arrivals, Privacy::FactOnly, &loud);
         assert_eq!(fact.len(), 1);
         assert_eq!(fact[0].channel, None);
         assert_eq!(fact[0].body, "2 new messages");
         assert!(!fact[0].body.contains("ann") && !fact[0].body.contains("cy"));
         assert_eq!(fact[0].newest, 9);
         assert_eq!(
-            compose(&arrivals[..1], Privacy::FactOnly)[0].body,
+            compose(&arrivals[..1], Privacy::FactOnly, &loud)[0].body,
             "A new message"
         );
     }

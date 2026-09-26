@@ -71,6 +71,7 @@ fn wake(home: &std::path::Path, endpoint: Option<String>, budget_secs: u64) -> S
     let me = unlocked.me();
     let settings = Settings::load(&Settings::path_under(&crate::host::data_dir()));
     let prefs = sigil::Prefs::load();
+    let quiet = sigil::Quiet::load();
     let accounts = sigil::Accounts::load();
     let exchanges: Vec<String> = accounts
         .all()
@@ -113,6 +114,11 @@ fn wake(home: &std::path::Path, endpoint: Option<String>, budget_secs: u64) -> S
         // "what may a locked screen say", and the one this window used to
         // read was the one the client ignored.
         window.privacy = prefs.privacy;
+        // **And what they muted.** Read from the same directory, keyed by
+        // the exchange as the roster names it -- the empty string for the
+        // default one, which is how the client keys a mute there too.
+        window.quiet = quiet.clone();
+        window.exchange = exchange.clone();
         window.distributor = endpoint.as_ref().map(|url| Distributor {
             url: url.clone(),
             ttl_secs: settings.endpoint_days.clamp(1, 30) * 24 * 60 * 60,
