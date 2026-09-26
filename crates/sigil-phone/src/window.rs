@@ -25,7 +25,7 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use sigil_chat::session::{self, LinkState};
+use sigil_chat::session::{self, Cmd, LinkState};
 use sigil_net::Dial;
 use sqnr_core::SoftwareSigner;
 
@@ -104,6 +104,8 @@ pub enum Step {
     Said { notified: usize, rang: usize },
     /// The stream was closed and the store lock released.
     Closed,
+    /// A ring was refused: the live signal and the durable entry both sent.
+    Declined,
 }
 
 /// The window's report.
@@ -121,9 +123,106 @@ pub struct Outcome {
     pub arrivals: usize,
     pub notified: usize,
     pub rang: usize,
+    /// A ring this run was asked to refuse, and did.
+    pub declined: bool,
     pub trouble: Option<String>,
     pub steps: Vec<Step>,
     pub took: Duration,
+}
+
+/// **Refuse a ring with nothing on screen.**
+///
+/// The shade offers Answer and Decline. Answering opens the application,
+/// which is right: a call is a screen, and somebody who presses Answer is
+/// asking for it. Refusing is the opposite — bringing the application
+/// forward to say no is precisely what the person did not ask for — so this
+/// connects, says it, and closes, drawing nothing.
+///
+/// It says the two things `Cmd::Decline` says: the live SIP-36 signal, for a
+/// caller who is listening at that instant, and the durable `CALL_DECLINED`
+/// entry, for one who is not. The second is why this cannot simply drop the
+/// notification and do nothing: a caller whose client was not listening
+/// would otherwise hear the call ring out, and learn nothing about it.
+///
+/// Connecting is all it waits for. A decline names the call it refuses, so
+/// it needs neither the conversation list nor anything fetched.
+pub async fn decline(window: Window, channel: [u8; 32], seq: Option<u64>) -> Outcome {
+    let started = Instant::now();
+    let deadline = started + window.budget;
+    let mut out = Outcome::default();
+    let mut handle = session::start(window.dial, window.signer, window.store_at, || {});
+    let mut said: Option<Instant> = None;
+    loop {
+        let now = Instant::now();
+        if now >= deadline {
+            out.ran_out = true;
+            tracing::warn!("the decline ran out before the link came up");
+            break;
+        }
+        let state = handle.state();
+        if let Some(trouble) = state.trouble.clone() {
+            out.trouble = Some(trouble);
+            break;
+        }
+        if state.link == LinkState::Up && !out.connected {
+            out.connected = true;
+            out.steps.push(Step::Connected);
+        }
+        // **The `seq` when the caller of this knows it, and otherwise the
+        // ring itself.** A notification posted by the wake window carries
+        // the invitation's `seq`; one posted by the running client carries
+        // only a `Target`, which has no room for it. Rather than teach the
+        // whole notification path a new field for one button, this finds
+        // the live ring in the conversation -- which is the session's own
+        // knowledge, and the thing being refused.
+        if out.connected && said.is_none() {
+            let refuse = seq.or_else(|| {
+                handle
+                    .ringing()
+                    .iter()
+                    .filter(|r| r.channel == channel && !r.mine)
+                    .map(|r| r.seq)
+                    .max()
+            });
+            if let Some(seq) = refuse {
+                handle.send(Cmd::Decline { channel, seq });
+                said = Some(now);
+                out.declined = true;
+                out.steps.push(Step::Declined);
+            }
+        }
+        // The ring leaving the session's own list is its word that the
+        // refusal went out. **With a floor under it**, because a session
+        // that kept the ring for any reason would otherwise hold this open
+        // to the budget, with the microphone of a call nobody answered
+        // ringing at the other end for as long as it took.
+        if let Some(at) = said {
+            let gone = !handle
+                .ringing()
+                .iter()
+                .any(|r| r.channel == channel && !r.mine);
+            if gone || now.duration_since(at) >= window.settle {
+                break;
+            }
+        }
+        let wait = deadline
+            .saturating_duration_since(now)
+            .min(Duration::from_millis(50));
+        let _ = tokio::time::timeout(wait, handle.changed()).await;
+    }
+
+    // The same close as a window's, and for the same reason: the store lock
+    // is the session's until its task ends, and the application opening
+    // next would be refused as "another client is already using this
+    // account".
+    let closing = handle.close();
+    let gone = Instant::now() + Duration::from_secs(5);
+    while !closing.is_finished() && Instant::now() < gone {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    out.steps.push(Step::Closed);
+    out.took = started.elapsed();
+    out
 }
 
 /// Run one window. Returns once the stream is closed and the store lock is

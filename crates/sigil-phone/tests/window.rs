@@ -384,5 +384,79 @@ async fn a_phone_is_woken_for_a_message_and_says_it_once_after_writing_it() {
     let out = sigil_phone::window::run(hushed, &fake).await;
     assert_eq!(out.rang, 0, "a muted conversation rang the phone: {out:?}");
     assert!(fake.rings().is_empty(), "{:?}", fake.rings());
+
+    // **Refused from the shade, with nothing drawn.** Answer opens the
+    // application, because a call is a screen; Decline must not, because
+    // bringing it forward to say no is what the person pressing Decline did
+    // not ask for. So this connects, says it and closes.
+    //
+    // **The caller is the witness.** A decline that only took the
+    // notification down would leave them ringing out and learning nothing,
+    // which is why it posts the durable entry as well as the live signal --
+    // and why the assertion is on their state and not on this side's.
+    let ringing = friend.ringing();
+    let call = ringing
+        .iter()
+        .find(|r| r.mine)
+        .expect("the friend's own call");
+    let out = sigil_phone::window::decline(
+        window(endpoint, signer(1).0, &phone_store, &push),
+        call.channel,
+        Some(call.seq),
+    )
+    .await;
+    assert!(out.connected, "the decline never got a link: {out:?}");
+    assert!(out.declined, "{out:?}");
+    assert!(
+        until(
+            || friend
+                .state()
+                .events
+                .iter()
+                .any(|e| e.said.contains("declined")),
+            15
+        )
+        .await,
+        "the caller should learn the call was refused: {:?}",
+        friend
+            .state()
+            .events
+            .iter()
+            .map(|e| e.said.clone())
+            .collect::<Vec<_>>()
+    );
+
+    // **And again without being told which ring.** A notification posted by
+    // the running client carries a `Target` -- identity, exchange,
+    // conversation -- and no `seq`, because a `Target` has no room for one.
+    // That is the path this phone actually uses, so it is the one that has
+    // to work: given only the conversation, the decline finds the live ring
+    // in it.
+    assert!(
+        until(|| !friend.ringing().iter().any(|r| r.mine), 15).await,
+        "the first call should be over before the second is placed"
+    );
+    friend.send(Cmd::Call { direct: false });
+    assert!(
+        until(|| friend.ringing().iter().any(|r| r.mine), 15).await,
+        "the friend should be calling again: {:?}",
+        friend.state().trouble
+    );
+    let second = friend
+        .ringing()
+        .into_iter()
+        .find(|r| r.mine)
+        .expect("the second call");
+    let out = sigil_phone::window::decline(
+        window(endpoint, signer(1).0, &phone_store, &push),
+        second.channel,
+        None,
+    )
+    .await;
+    assert!(
+        out.declined,
+        "given only the conversation, it should have found the ring: {out:?}"
+    );
+
     let _ = friend.close();
 }

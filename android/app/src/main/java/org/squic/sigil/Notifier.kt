@@ -129,6 +129,21 @@ object Notifier {
         }
         val show = leadingTo(false, channelHex.hashCode())
         val answer = leadingTo(true, channelHex.hashCode() xor 0x5ADD)
+        // **Decline goes nowhere.** Answer opens sigil, because a call is a
+        // screen; refusing one does not want the application brought to the
+        // front, so this is a broadcast the receiver handles with nothing
+        // drawn. The notification had Answer alone, so the only way to
+        // refuse a call from the shade was to open it and find the red
+        // handset.
+        val decline = PendingIntent.getBroadcast(
+            ctx,
+            channelHex.hashCode() xor 0x0DEC,
+            Intent(ctx, DeclineReceiver::class.java).apply {
+                putExtra(EXTRA_EXCHANGE, exchange)
+                putExtra(EXTRA_CHANNEL, channelHex)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         // Who is calling goes in the title. The body says what is
         // happening, and used to carry the *channel's* description --
         // "Somebody is calling" -- which is settings text about the
@@ -147,6 +162,7 @@ object Notifier {
             // or given up on, which is the only thing that knows.
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null, ctx.getString(R.string.answer), answer).build())
+            .addAction(Notification.Action.Builder(null, ctx.getString(R.string.decline), decline).build())
             .build()
         ctx.getSystemService(NotificationManager::class.java).notify(channelHex, 2, n)
     }

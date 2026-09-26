@@ -194,6 +194,116 @@ pub extern "system" fn Java_org_squic_sigil_Native_picked(
     platform::picked(Some(out));
 }
 
+/// `Native.decline(filesDir, exchange, channelHex, seq, budgetSecs)`: refuse
+/// a ring, with nothing drawn.
+///
+/// The ring notification's other button. Answer opens the application,
+/// because a call is a screen and that is what Answer asks for; Decline
+/// must not, so this runs headless like a wake window and the application
+/// is never started. Returns a line for the log.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_org_squic_sigil_Native_decline(
+    mut env: JNIEnv,
+    _class: JClass,
+    files_dir: JString,
+    exchange: JString,
+    channel: JString,
+    seq: jni::sys::jlong,
+    budget_secs: jint,
+) -> jstring {
+    let files_dir = std::path::PathBuf::from(bridge::string_from(&mut env, &files_dir));
+    let exchange = bridge::string_from(&mut env, &exchange);
+    let channel = bridge::string_from(&mut env, &channel);
+    super::entry::point_home(&files_dir);
+    super::entry::install_logging();
+    // Negative is "not known": the running client's notification carries a
+    // `Target`, which has no `seq` in it, and the decline finds the ring.
+    let seq = (seq >= 0).then_some(seq as u64);
+    let report = decline(
+        &files_dir,
+        &exchange,
+        &channel,
+        seq,
+        budget_secs.max(3) as u64,
+    );
+    tracing::info!("{report}");
+    env.new_string(&report)
+        .map(|s| s.into_raw())
+        .unwrap_or(std::ptr::null_mut())
+}
+
+fn decline(
+    home: &std::path::Path,
+    exchange: &str,
+    channel_hex: &str,
+    seq: Option<u64>,
+    budget_secs: u64,
+) -> String {
+    let Some(channel) = channel_from_hex(channel_hex) else {
+        return format!("not a conversation: {channel_hex:?}");
+    };
+    let account = match identity::ensure(&Where::under(home), &AndroidVault) {
+        Ok(opened) => opened.account,
+        Err(why) => return format!("no identity to decline with: {why}"),
+    };
+    let Some(unlocked) = account.unlocked() else {
+        return "the identity did not unlock".to_string();
+    };
+    // The same dial the window uses: a named exchange as itself, the
+    // default one through whatever the identity's own handle and
+    // `~/.sqnr/config` resolve to.
+    let config = sqnr::config::Config::load();
+    let layers = if exchange.is_empty() {
+        sigil_net::discovery::layers(
+            sigil_net::discovery::nothing_explicit(),
+            &config,
+            Some(unlocked.path()),
+        )
+    } else {
+        vec![sigil_net::Layer {
+            server: Some(exchange.to_string()),
+            ..Default::default()
+        }]
+    };
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => return format!("no runtime: {e}"),
+    };
+    let mut window = Window::new(Dial::Discover(layers), unlocked.signer());
+    window.budget = Duration::from_secs(budget_secs);
+    window.exchange = exchange.to_string();
+    let out = runtime.block_on(sigil_phone::window::decline(window, channel, seq));
+    format!(
+        "declined={} connected={} took={:?}{}",
+        out.declined,
+        out.connected,
+        out.took,
+        out.trouble
+            .map(|t| format!(" trouble={t}"))
+            .unwrap_or_default()
+    )
+}
+
+/// A conversation as a notification spells it: sixty-four hex characters.
+///
+/// One reader, because two would be two chances to disagree about what a
+/// channel is -- and `Notifier` writes this string for every kind of
+/// notification it posts, so everything coming back the other way has to
+/// read it the same.
+fn channel_from_hex(hex: &str) -> Option<[u8; 32]> {
+    if hex.len() != 64 {
+        return None;
+    }
+    let mut bytes = [0u8; 32];
+    for (i, b) in bytes.iter_mut().enumerate() {
+        *b = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(bytes)
+}
+
 /// `Native.pressed(identity, exchange, channelHex, answer)`: a notification
 /// led here. `answer` is Answer on a ring, which opens the conversation
 /// **and** answers the call; an ordinary press only opens it.
@@ -212,13 +322,9 @@ pub extern "system" fn Java_org_squic_sigil_Native_pressed(
     let Ok(identity) = identity.parse::<PubKey>() else {
         return;
     };
-    let mut bytes = [0u8; 32];
-    if channel.len() != 64 {
+    let Some(bytes) = channel_from_hex(&channel) else {
         return;
-    }
-    for (i, b) in bytes.iter_mut().enumerate() {
-        *b = u8::from_str_radix(&channel[i * 2..i * 2 + 2], 16).unwrap_or(0);
-    }
+    };
     platform::pressed(Target {
         identity,
         exchange,

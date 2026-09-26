@@ -32,6 +32,21 @@ object Native {
     /** Files chosen for an outstanding pick, or none. Paths in the app's cache. */
     external fun picked(paths: Array<String>?)
 
+    /**
+     * Refuse a ring, with nothing drawn: connect, say it, close. Runs to
+     * completion on the calling thread, which must not be the main one.
+     * `seq` is the invitation's, or -1 where the notification did not carry
+     * it and the live ring in the conversation is the one to refuse.
+     * Returns a one-line report for the log.
+     */
+    external fun decline(
+        filesDir: String,
+        exchange: String,
+        channelHex: String,
+        seq: Long,
+        budgetSecs: Int,
+    ): String
+
     /** A notification was pressed: which account, exchange and conversation it led to. */
     external fun pressed(identity: String, exchange: String, channelHex: String, answer: Boolean)
 

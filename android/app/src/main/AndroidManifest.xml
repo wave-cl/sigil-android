@@ -113,6 +113,12 @@
 
         <!-- A call in progress, with the microphone open: the one thing a
              phone must not do in silence. -->
+        <!-- The ring notification's Decline: a broadcast, so refusing a
+             call never brings the application to the front. -->
+        <receiver
+            android:name=".DeclineReceiver"
+            android:exported="false" />
+
         <service
             android:name=".CallService"
             android:exported="false"
