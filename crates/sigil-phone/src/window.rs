@@ -307,6 +307,7 @@ pub async fn run(window: Window, phone: &dyn Phone) -> Outcome {
                 out.notified += 1;
             }
         }
+        let mut live: std::collections::HashSet<[u8; 32]> = std::collections::HashSet::new();
         for ring in handle.ringing() {
             // **A muted conversation does not ring either.** Awake,
             // `sigil_chat::announce` puts its rings through the same
@@ -327,7 +328,43 @@ pub async fn run(window: Window, phone: &dyn Phone) -> Outcome {
             if phone.ring(&ring) {
                 out.rang += 1;
             }
+            live.insert(ring.channel);
         }
+        // **And take down the ones that have stopped ringing.**
+        //
+        // A ring goes up *ongoing*, which cannot be swiped away, and the
+        // only thing that ever took one down was the running client's own
+        // sweep over the rings *it* posted, from a record it keeps in
+        // memory. A ring posted by a window while the phone slept is in no
+        // such record and in no such process, so a call nobody answered left
+        // an unswipeable "Incoming call" on the shade — still offering
+        // Answer — for good.
+        //
+        // Swept over the conversations rather than from a record of what was
+        // posted, because a window keeps nothing between wakes: asking the
+        // platform to cancel a notification that is not there costs nothing
+        // and says nothing, so the cheap idempotent sweep is also the one
+        // with no state to get wrong.
+        for convo in handle.state().conversations {
+            if !live.contains(&convo.channel) {
+                phone.unring(&convo.channel);
+            }
+        }
+        // **And take down the ones that have stopped ringing.**
+        //
+        // A ring goes up *ongoing*, which cannot be swiped away, and the
+        // only thing that ever took one down was the running client's own
+        // sweep over the rings *it* posted. A ring posted by a window while
+        // the phone slept is in no such record and in no such process, so a
+        // call nobody answered left an unswipeable "Incoming call" on the
+        // shade — still offering Answer — for good.
+        //
+        // Swept over the conversations rather than from a record of what was
+        // posted, because a window keeps nothing between wakes: asking the
+        // platform to cancel a notification that is not there costs nothing
+        // and says nothing, so the cheap idempotent sweep is also the one
+        // with no state to get wrong.
+
         if out.notified + out.rang > 0 {
             out.steps.push(Step::Said {
                 notified: out.notified,

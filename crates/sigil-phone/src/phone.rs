@@ -30,6 +30,22 @@ pub trait Phone: Send + Sync {
     fn notify(&self, notification: &Notification) -> bool;
     /// Present a call that is ringing. Returns whether it was.
     fn ring(&self, ring: &Ring) -> bool;
+
+    /// Take a ring down: it was declined, answered, cancelled, or the
+    /// caller gave up.
+    ///
+    /// **The window could post one and had no way to withdraw it.** A ring
+    /// goes up as an *ongoing* notification, which cannot be swiped away,
+    /// and the only thing that took one down was
+    /// `sigil_chat::announce::withdraw_gone` — which sweeps the rings the
+    /// *running client* posted, from a record it keeps in memory. A ring
+    /// posted while the phone was asleep is in no such record, in no such
+    /// process. So a call nobody answered left an unswipeable "Incoming
+    /// call" on the shade, still offering Answer, for good.
+    ///
+    /// The same bug `withdraw_gone`'s own comment describes as fixed —
+    /// fixed on the path that was awake.
+    fn unring(&self, channel: &[u8; 32]);
 }
 
 /// A phone that remembers what it was asked to show. For tests.
@@ -37,6 +53,7 @@ pub trait Phone: Send + Sync {
 pub struct Fake {
     pub notified: Mutex<Vec<Notification>>,
     pub rang: Mutex<Vec<Ring>>,
+    pub unrang: Mutex<Vec<[u8; 32]>>,
 }
 
 impl Fake {
@@ -49,6 +66,14 @@ impl Fake {
 
     pub fn rings(&self) -> Vec<Ring> {
         self.rang.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Which rings it was asked to take down.
+    pub fn unrings(&self) -> Vec<[u8; 32]> {
+        self.unrang
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 
@@ -67,5 +92,12 @@ impl Phone for Fake {
             .unwrap_or_else(|e| e.into_inner())
             .push(ring.clone());
         true
+    }
+
+    fn unring(&self, channel: &[u8; 32]) {
+        self.unrang
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(*channel);
     }
 }

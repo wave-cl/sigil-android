@@ -372,6 +372,15 @@ async fn a_phone_is_woken_for_a_message_and_says_it_once_after_writing_it() {
     let rang = fake.rings();
     assert_eq!(rang[0].from, friend_id);
     assert!(rang[0].direct);
+    // **And the one that is ringing is not taken down.** A window sweeps
+    // every conversation that is *not* ringing, so the half that matters is
+    // that the sweep leaves this one alone — a sweep that took them all down
+    // would cancel the ring it had just posted.
+    assert!(
+        !fake.unrings().contains(&rang[0].channel),
+        "the window took down the ring it had just posted: {:?}",
+        fake.unrings()
+    );
 
     // **And a muted conversation does not ring.** The same call, still
     // ringing, with the conversation silenced. `silenced` is
@@ -456,6 +465,32 @@ async fn a_phone_is_woken_for_a_message_and_says_it_once_after_writing_it() {
     assert!(
         out.declined,
         "given only the conversation, it should have found the ring: {out:?}"
+    );
+
+    // **A ring that has stopped ringing comes down.**
+    //
+    // A ring goes up *ongoing*, so it cannot be swiped away, and the only
+    // thing that ever took one down was the running client's sweep over the
+    // rings *it* had posted, from a record it keeps in memory. A ring posted
+    // by a window while the phone slept is in no such record and in no such
+    // process — so a call nobody answered left an unswipeable "Incoming
+    // call" on the shade, still offering Answer, for good.
+    //
+    // **Last, on purpose.** Every assertion above it needs a live ring, and
+    // this is the one that ends one: put earlier it would have made "a muted
+    // conversation does not ring" pass because nothing was ringing at all.
+    assert!(
+        until(|| !friend.ringing().iter().any(|r| r.mine), 15).await,
+        "the second call should be over"
+    );
+    let fake = Fake::default();
+    let out =
+        sigil_phone::window::run(window(endpoint, signer(1).0, &phone_store, &push), &fake).await;
+    assert_eq!(out.rang, 0, "it rang for a call that was over: {out:?}");
+    assert!(
+        fake.unrings().contains(&second.channel),
+        "the ring was left on the shade with nothing able to remove it: {:?}",
+        fake.unrings()
     );
 
     let _ = friend.close();

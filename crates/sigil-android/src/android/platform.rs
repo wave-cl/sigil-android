@@ -364,6 +364,16 @@ impl Phone for AndroidPhone {
             .map_err(|why| tracing::warn!("could not ring: {why}"))
             .is_ok()
     }
+
+    fn unring(&self, channel: &[u8; 32]) {
+        // Quietly: this is swept over every conversation on every wake, and
+        // cancelling a notification that is not there is the ordinary case
+        // rather than a fault. Only a failure to *reach* the platform is
+        // worth a line, and `end_ring` says which.
+        if let Err(why) = end_ring(channel) {
+            tracing::debug!("could not take a ring down: {why}");
+        }
+    }
 }
 
 /// The Android key store, through `Vault.kt`.
