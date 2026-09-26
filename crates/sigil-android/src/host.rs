@@ -32,26 +32,6 @@ pub struct PhoneReport {
 
 pub type Shared = Arc<Mutex<PhoneReport>>;
 
-/// The one notifier, boxed for the shell as well as shared with the chat
-/// app: the shell's `with_notify` takes a box, and the phone has one
-/// notifier.
-struct Also(Arc<dyn Notify + Send + Sync>);
-
-impl Notify for Also {
-    fn notice(&self, notice: sigil::app::Notice<'_>) -> bool {
-        self.0.notice(notice)
-    }
-    fn pressed(&self) -> Vec<sigil::app::Target> {
-        self.0.pressed()
-    }
-    fn withdraw(&self, target: &sigil::app::Target) {
-        self.0.withdraw(target)
-    }
-    fn calling(&self, with: Option<&str>) {
-        self.0.calling(with)
-    }
-}
-
 /// Where sigil keeps its own state: `$XDG_DATA_HOME/sigil`, which the
 /// Android entry points inside the app's files directory.
 pub fn data_dir() -> PathBuf {
@@ -143,7 +123,7 @@ impl Host {
             ),
         ];
         let shell = Shell::new(apps, None)
-            .with_notify(Box::new(Also(notify)))
+            .with_notify(Box::new(notify))
             .with_roster(accounts, remember);
         Ok(Host { shell, report })
     }

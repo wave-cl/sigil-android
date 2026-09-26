@@ -7,7 +7,7 @@ use std::time::Duration;
 use jni::objects::{JClass, JObject, JObjectArray, JString};
 use jni::sys::{JNI_VERSION_1_6, jint, jstring};
 use jni::{JNIEnv, JavaVM};
-use sigil::app::Target;
+use sigil::app::{CallAct, CallPress, Target};
 use sigil_net::Dial;
 use sigil_phone::{Distributor, Window};
 use sqnr_core::PubKey;
@@ -340,6 +340,54 @@ pub extern "system" fn Java_org_squic_sigil_Native_pressed(
         channel: bytes,
         answer: answer != 0,
     });
+}
+
+/// `Native.showCall(identity)`: the person pressed the notice a live call
+/// stands behind, and wants the call back.
+///
+/// Queued rather than acted on, like every other press: this arrives on the
+/// main thread with no window drawn yet, and the shell takes it on the next
+/// pass with the navigator in hand.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_org_squic_sigil_Native_showCall(
+    mut env: JNIEnv,
+    _class: JClass,
+    identity: JString,
+) {
+    if let Some(identity) = account_from(&mut env, &identity) {
+        platform::call_pressed(CallPress {
+            identity,
+            act: CallAct::Show,
+        });
+    }
+}
+
+/// `Native.hangUp(identity)`: the person ended the call from its notice.
+///
+/// **From a broadcast receiver, with nothing drawn and nothing brought to
+/// the front.** Hanging up from the shade is what somebody does when they do
+/// not want the application; the window comes up for `Show` and stays where
+/// it is for this.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_org_squic_sigil_Native_hangUp(
+    mut env: JNIEnv,
+    _class: JClass,
+    identity: JString,
+) {
+    if let Some(identity) = account_from(&mut env, &identity) {
+        platform::call_pressed(CallPress {
+            identity,
+            act: CallAct::HangUp,
+        });
+    }
+}
+
+/// An identity as a notification spells it, or nothing.
+///
+/// One reader, because three entry points take one and a base58 key that
+/// will not parse is the same non-answer at each of them.
+fn account_from(env: &mut JNIEnv, identity: &JString) -> Option<PubKey> {
+    bridge::string_from(env, identity).parse::<PubKey>().ok()
 }
 
 /// `Native.link(url)`: a `sigil://` link, **offered**.

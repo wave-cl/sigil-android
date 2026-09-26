@@ -119,6 +119,12 @@
             android:name=".DeclineReceiver"
             android:exported="false" />
 
+        <!-- The live call notice's Hang up: a broadcast for the same reason.
+             Somebody ending a call from the shade left sigil on purpose. -->
+        <receiver
+            android:name=".HangUpReceiver"
+            android:exported="false" />
+
         <service
             android:name=".CallService"
             android:exported="false"

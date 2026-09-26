@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hang up, for the action on a live call's notice: the handset everybody
+     already knows, turned down and struck through. The same two ideas as
+     `sigil::Icon::HangUp` — an arc bowing away from the diagonal with a fat
+     end at each end of it, and a line across it — drawn as one filled path
+     because a notification action icon is a single-colour mask and gets no
+     stroke width of its own.
+
+     Filled rather than stroked for that reason: the platform tints this to
+     whatever the shade's foreground is and throws the rest away, so a shape
+     that relied on a stroke colour would come out as a silhouette of its
+     bounding box. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- The handset, lying down: the receiver every dialler draws for a call
+         that is being put down. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,6.5 C8.1,6.5 4.5,7.7 1.8,9.7 C1.3,10.1 1,10.7 1,11.4 L1,13.9 C1,14.7 1.7,15.4 2.5,15.4 C3.2,15.4 3.8,15 4.1,14.4 L5.6,12.1 C5.8,11.8 6.1,11.6 6.5,11.5 C8.2,11 10.1,10.7 12,10.7 C13.9,10.7 15.8,11 17.5,11.5 C17.9,11.6 18.2,11.8 18.4,12.1 L19.9,14.4 C20.2,15 20.8,15.4 21.5,15.4 C22.3,15.4 23,14.7 23,13.9 L23,11.4 C23,10.7 22.7,10.1 22.2,9.7 C19.5,7.7 15.9,6.5 12,6.5 Z" />
+    <!-- And the stroke through it, which is the whole difference between
+         this and the icon for placing one. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3.4,2 L22,20.6 L20.6,22 L2,3.4 Z" />
+</vector>

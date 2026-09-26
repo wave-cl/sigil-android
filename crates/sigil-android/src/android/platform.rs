@@ -4,7 +4,7 @@
 use std::sync::Mutex;
 
 use jni::objects::JValue;
-use sigil::app::{Notice, Notify, Sound, Target};
+use sigil::app::{CallPress, Notice, Notify, Sound, Target};
 use sigil_chat::files::{Answer, Chooser, Pick};
 use sigil_phone::{Notification, Phone, Ring};
 
@@ -64,16 +64,27 @@ pub fn post_message(
     })
 }
 
-/// `CallService.begin(context, with)`: a foreground service for the call.
-pub fn begin_call(with: &str) -> Result<(), String> {
+/// `CallService.begin(context, with, identity)`: a foreground service for the
+/// call.
+///
+/// The identity goes with the label because the notice the service stands
+/// behind carries a way back into the call and a way to end it, and a press
+/// on either has to say which call it meant -- this phone can hold one per
+/// identity.
+pub fn begin_call(with: &str, identity: &str) -> Result<(), String> {
     with_env(|env, context| {
         let class = bridge::class("CallService")?;
         let with = jstring(env, with)?;
+        let identity = jstring(env, identity)?;
         env.call_static_method(
             class,
             "begin",
-            "(Landroid/content/Context;Ljava/lang/String;)V",
-            &[JValue::Object(context), JValue::Object(&with)],
+            "(Landroid/content/Context;Ljava/lang/String;Ljava/lang/String;)V",
+            &[
+                JValue::Object(context),
+                JValue::Object(&with),
+                JValue::Object(&identity),
+            ],
         )?;
         Ok(())
     })
@@ -194,6 +205,20 @@ pub fn pressed(target: Target) {
     }
 }
 
+/// Presses on the notice a live call stands behind.
+///
+/// A second queue rather than a `Target` with a flag on it: these arrive from
+/// a broadcast receiver with no activity and no conversation in hand, and one
+/// of them -- Hang up -- deliberately does not bring the window up at all.
+static CALL_PRESSES: Mutex<Vec<CallPress>> = Mutex::new(Vec::new());
+
+/// Called from the JNI exports behind the call notice's controls.
+pub fn call_pressed(press: CallPress) {
+    if let Ok(mut p) = CALL_PRESSES.lock() {
+        p.push(press);
+    }
+}
+
 impl AndroidNotifier {
     pub fn new() -> AndroidNotifier {
         AndroidNotifier {
@@ -260,9 +285,9 @@ impl Notify for AndroidNotifier {
     /// Called on change, never on the clock: the caller compares a call being
     /// up against what it last said, so this does not start a foreground
     /// service sixty times a second.
-    fn calling(&self, with: Option<&str>) {
-        let result = match with {
-            Some(who) => begin_call(who),
+    fn calling(&self, live: Option<sigil::InCall<'_>>) {
+        let result = match live {
+            Some(live) => begin_call(live.with, &live.identity.to_string()),
             None => end_call(),
         };
         if let Err(why) = result {
@@ -290,6 +315,13 @@ impl Notify for AndroidNotifier {
                 !speaker
             }
         }
+    }
+
+    fn call_presses(&self) -> Vec<CallPress> {
+        CALL_PRESSES
+            .lock()
+            .map(|mut p| std::mem::take(&mut *p))
+            .unwrap_or_default()
     }
 
     fn pressed(&self) -> Vec<Target> {

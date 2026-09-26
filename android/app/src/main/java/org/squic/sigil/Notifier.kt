@@ -30,6 +30,13 @@ object Notifier {
     /** The press was Answer on a ring, not an ordinary press. */
     const val EXTRA_ANSWER = "org.squic.sigil.answer"
 
+    /**
+     * The press was on a live call's notice, and means "back to the call".
+     * Not a conversation: a call is a screen rather than a place in one, and
+     * the person may be nowhere near the conversation it started in.
+     */
+    const val EXTRA_SHOW_CALL = "org.squic.sigil.showcall"
+
     fun ensureChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(

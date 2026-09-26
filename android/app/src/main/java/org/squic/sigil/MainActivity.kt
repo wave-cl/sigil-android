@@ -80,9 +80,30 @@ class MainActivity : NativeActivity() {
         val identity = intent.getStringExtra(Notifier.EXTRA_IDENTITY)
         val exchange = intent.getStringExtra(Notifier.EXTRA_EXCHANGE)
         val channel = intent.getStringExtra(Notifier.EXTRA_CHANNEL)
+        // **Back to a call in progress**, from the notice it stands behind.
+        // Not a conversation: the person may be nowhere near the one the call
+        // started in, and a call is a screen rather than a place in one.
+        if (intent.getBooleanExtra(Notifier.EXTRA_SHOW_CALL, false) && identity != null) {
+            Native.showCall(identity)
+        }
         if (identity != null && exchange != null && channel != null) {
+            val answering = intent.getBooleanExtra(Notifier.EXTRA_ANSWER, false)
+            // **The ring comes down on the press, not when the call is up.**
+            // It is posted ongoing, so nobody can swipe it away, and it was
+            // taken down by `endRing` only once the answer had been through
+            // the window, the session and the far end -- seconds during which
+            // a call somebody had already accepted went on ringing at them.
+            // Decline has worked this way from the start; Answer had not.
+            //
+            // Safe to take down early here because this *is* the window
+            // opening: the conversation comes up with the ring card on it, so
+            // an answer that does not go through is still in front of the
+            // person with both buttons on it.
+            if (answering) {
+                Notifier.endRing(this, channel)
+            }
             // Answer is a press that also answers; an ordinary press is not.
-            Native.pressed(identity, exchange, channel, intent.getBooleanExtra(Notifier.EXTRA_ANSWER, false))
+            Native.pressed(identity, exchange, channel, answering)
         }
         if (intent.action == Intent.ACTION_VIEW) {
             intent.dataString?.let { if (it.startsWith("sigil://")) Native.link(it) }

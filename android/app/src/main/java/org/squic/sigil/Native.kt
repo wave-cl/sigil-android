@@ -53,6 +53,19 @@ object Native {
     /** A notification was pressed: which account, exchange and conversation it led to. */
     external fun pressed(identity: String, exchange: String, channelHex: String, answer: Boolean)
 
+    /**
+     * The notice a live call stands behind was pressed: take the person back
+     * to the call. Queued for the next pass, like every other press.
+     */
+    external fun showCall(identity: String)
+
+    /**
+     * Hang up, from that notice's own button. Nothing is drawn and the window
+     * is not brought forward: ending a call from the shade is what somebody
+     * does when they do *not* want the application in front of them.
+     */
+    external fun hangUp(identity: String)
+
     /** A `sigil://` link arrived while the app was running. Offered, never acted on silently. */
     external fun link(url: String)
 

@@ -23,9 +23,30 @@ class CallService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val with = intent?.getStringExtra(EXTRA_WITH) ?: ""
-        val open = Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        // Kept, because `onStartCommand` runs again for a service that is
+        // already up and the second intent may carry nothing.
+        intent?.getStringExtra(Notifier.EXTRA_IDENTITY)?.let { whose = it }
+        val identity = whose
+        // **Back to the call, not merely back to sigil.** This used to open
+        // the window with no extras, which lands wherever the person last
+        // was -- and the whole point of being able to leave a call running
+        // is that they went somewhere else. The extra names the call, and
+        // the window goes to its card.
+        val open = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra(Notifier.EXTRA_SHOW_CALL, true)
+            .putExtra(Notifier.EXTRA_IDENTITY, identity)
         val pending = android.app.PendingIntent.getActivity(
             this, 0, open,
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+        // **A way off the call without opening the app.** A broadcast, so
+        // nothing is drawn and nothing comes to the front: somebody hanging
+        // up from the shade left sigil on purpose.
+        val hangUp = android.app.PendingIntent.getBroadcast(
+            this, 1,
+            Intent(this, HangUpReceiver::class.java)
+                .putExtra(Notifier.EXTRA_IDENTITY, identity),
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
         val notice = Notification.Builder(this, Notifier.QUIET)
@@ -35,6 +56,13 @@ class CallService : Service() {
             .setContentIntent(pending)
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_CALL)
+            .addAction(
+                Notification.Action.Builder(
+                    android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_stat_hang_up),
+                    getString(R.string.hang_up),
+                    hangUp
+                ).build()
+            )
             .build()
         // **Both types, with a fallback -- not because the permission is
         // missing.** From Android 14 the `phoneCall` type wants
@@ -86,13 +114,20 @@ class CallService : Service() {
         super.onDestroy()
     }
 
+    /** Whose call this is, for the notice's two controls. */
+    private var whose: String = ""
+
     companion object {
         private const val TAG = "sigil"
         const val EXTRA_WITH = "org.squic.sigil.with"
 
         @JvmStatic
-        fun begin(ctx: Context, with: String) {
-            ctx.startForegroundService(Intent(ctx, CallService::class.java).putExtra(EXTRA_WITH, with))
+        fun begin(ctx: Context, with: String, identity: String) {
+            ctx.startForegroundService(
+                Intent(ctx, CallService::class.java)
+                    .putExtra(EXTRA_WITH, with)
+                    .putExtra(Notifier.EXTRA_IDENTITY, identity)
+            )
         }
 
         @JvmStatic
