@@ -180,7 +180,34 @@ fn main() {
         // the session's own word for why and was being thrown away.
         if !synced {
             match handle.state().trouble {
-                Some(why) => println!("the link is up but it never synced in 15s — {why}"),
+                Some(why) => {
+                    println!("the link is up but it never synced in 15s — {why}");
+                    // **A refusal somebody can act on.** `pool_full` means
+                    // this account has SIP-23's `MAX_STORED` one-time prekeys
+                    // at the exchange and cannot publish more. The library
+                    // already fixes that by itself -- an empty local pool
+                    // makes it send `Clear` and resume above what was there --
+                    // but `Clear` is capped at `MAX_CLEAR` in an hour, and
+                    // past that the refusal falls in with "this exchange has
+                    // no Clear at all" and the stale prekeys stay. So the
+                    // answer really is to wait, and an afternoon went on not
+                    // knowing that.
+                    if why.contains("pool_full") {
+                        println!();
+                        println!(
+                            "  that is SIP-23's pool at its ceiling. This client clears it \
+                             and starts again on its own,"
+                        );
+                        println!(
+                            "  but Clear is capped at 4 in an hour — so if several runs \
+                             have just been made as this"
+                        );
+                        println!(
+                            "  identity, give it the rest of the hour and try once more. \
+                             Nothing needs to be deleted."
+                        );
+                    }
+                }
                 None => println!("the link is up but it never synced in 15s, and said no reason"),
             }
             return;
