@@ -1,0 +1,16 @@
+# The part of the app's F-Droid metadata that does not move. The versions
+# (`Builds:`, `CurrentVersion*`) are appended by scripts/fdroid-repo from
+# the APKs it is given, so this file never has to be bumped for a release.
+#
+# The listing text, the icon and the screenshots are not here: they live in
+# fastlane/metadata/android/en-US/, which is the format IzzyOnDroid and
+# f-droid.org read too.
+Categories:
+  - Internet
+  - Phone & SMS
+License: MIT
+AuthorName: Colin Lyons
+SourceCode: https://github.com/wave-cl/sigil-android
+IssueTracker: https://github.com/wave-cl/sigil-android/issues
+Changelog: https://github.com/wave-cl/sigil-android/releases
+Name: Sigil

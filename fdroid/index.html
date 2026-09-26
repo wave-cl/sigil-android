@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sigil for Android</title>
+<style>
+  :root { color-scheme: light dark; --fg: #16161a; --bg: #fbfbfd; --dim: #5c5c66; --line: #dcdce4; --accent: #4b52d4; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e8e8ee; --bg: #131317; --dim: #9a9aa6; --line: #2c2c34; --accent: #8d93f5; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 48px 16px 72px; background: var(--bg); color: var(--fg);
+         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 34rem; margin: 0 auto; }
+  h1 { font-size: 1.9rem; letter-spacing: -0.02em; margin: 0 0 .25em; }
+  h2 { font-size: 1.05rem; margin: 2.2em 0 .6em; letter-spacing: -0.01em; }
+  p.lede { color: var(--dim); margin: 0 0 2em; }
+  ol { padding-left: 1.2em; }
+  li { margin: .5em 0; }
+  code, .url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; }
+  .url { display: block; padding: .75em .9em; border: 1px solid var(--line); border-radius: 8px;
+         background: color-mix(in srgb, var(--fg) 4%, transparent); word-break: break-all; margin: .6em 0; }
+  a { color: var(--accent); }
+  footer { margin-top: 3em; padding-top: 1.2em; border-top: 1px solid var(--line); color: var(--dim); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Sigil for Android</h1>
+  <p class="lede">Voice calls and end-to-end encrypted chat over sQUIC, as a device of your account.
+     This page is an F-Droid repository: add it once and updates arrive like any other app's.</p>
+
+  <h2>Add it to F-Droid</h2>
+  <ol>
+    <li>Install <a href="https://f-droid.org/">F-Droid</a> if you have not.</li>
+    <li>Open <strong>Settings &rarr; Repositories</strong>, press <strong>+</strong>, and enter this address:</li>
+  </ol>
+  <span class="url">https://wave-cl.github.io/sigil-android/fdroid/repo</span>
+  <p>Then find <strong>Sigil</strong> under Latest, and install it.</p>
+
+  <h2>Check you have the right repository</h2>
+  <p>F-Droid pins this key the moment you add the repository. It should read:</p>
+  <span class="url">A5 2C 1D F8 C3 34 79 C5 9D 63 DA 79 92 FB D6 5C<br>C7 E7 31 50 9C 61 D9 85 B3 41 13 5E 55 87 BE 7A</span>
+
+  <h2>Or install the APK directly</h2>
+  <p>Every version here is also attached to a
+     <a href="https://github.com/wave-cl/sigil-android/releases">GitHub release</a>, signed with the same
+     key &mdash; the two are the same file, and one upgrades over the other.</p>
+
+  <footer>
+    Source, and what the app does and does not send, at
+    <a href="https://github.com/wave-cl/sigil-android">github.com/wave-cl/sigil-android</a>. MIT.
+  </footer>
+</main>
+</body>
+</html>

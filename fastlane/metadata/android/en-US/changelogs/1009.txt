@@ -1,0 +1,11 @@
+Search is a card of its own, and an empty box no longer reports that it
+found nothing.
+
+A message's menu is a row of icons rather than a list, and it opens inside
+what the system leaves rather than under the notch.
+
+A scrolled conversation offers a way back to the newest message, drawn over
+the transcript instead of taking a line from it.
+
+A ring that cannot be answered says what is wrong, at the bottom where the
+buttons are.

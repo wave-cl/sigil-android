@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+#
+# Assemble the F-Droid repository: the APKs of our GitHub releases, the
+# listing in fastlane/, and an index signed with the repository key.
+#
+#   scripts/fdroid-repo OUT APK...
+#
+# OUT is a directory to build in; it is created and its `repo/` ends up
+# being what gets published. Each APK is a release artefact, named
+# sigil-android-vX.Y.Z.apk as the release workflow names it.
+#
+# The key comes from the environment, both or neither:
+#
+#   SIGIL_FDROID_KEYSTORE            path to the .p12  (default ~/.sigil-fdroid-key.p12)
+#   SIGIL_FDROID_KEYSTORE_PASSWORD   the passphrase    (default the .pass beside it)
+#
+# `fdroid` itself is whatever is on PATH; scripts/fdroid-venv makes one.
+#
+# Two things here are not obvious and were found by reading fdroidserver:
+#
+#  - `repo_icon` is checked as a path *relative to this directory*, not
+#    under repo/icons/ as its own warning claims, so the icon is copied to
+#    the top level.
+#  - A per-version changelog is attached only to a version that appears in
+#    the app's `Builds:` list. In a binary repository nothing populates
+#    that list, so the changelogs are silently dropped unless we write the
+#    versions into it ourselves -- which is what the loop below does.
+set -euo pipefail
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+out="${1:-}"
+[ -n "$out" ] || { echo "usage: scripts/fdroid-repo OUT APK..."; exit 2; }
+shift
+[ "$#" -gt 0 ] || { echo "no APKs given"; exit 2; }
+
+keystore="${SIGIL_FDROID_KEYSTORE:-$HOME/.sigil-fdroid-key.p12}"
+[ -f "$keystore" ] || { echo "no keystore at $keystore (scripts/fdroid-key makes one)"; exit 1; }
+if [ -n "${SIGIL_FDROID_KEYSTORE_PASSWORD:-}" ]; then
+    pass="$SIGIL_FDROID_KEYSTORE_PASSWORD"
+else
+    passfile="${keystore%.p12}.pass"
+    [ -f "$passfile" ] || { echo "no passphrase: set SIGIL_FDROID_KEYSTORE_PASSWORD or put it in $passfile"; exit 1; }
+    pass="$(cat "$passfile")"
+fi
+
+command -v fdroid >/dev/null || { echo "fdroid is not on PATH (scripts/fdroid-venv makes one)"; exit 1; }
+
+mkdir -p "$out/repo" "$out/metadata/org.squic.sigil"
+cp -R "$repo/fastlane/metadata/android/en-US" "$out/metadata/org.squic.sigil/en-US"
+cp "$repo/android/play/icon-512.png" "$out/icon.png"
+
+# The versions, read from the APK names rather than named by hand, so a
+# release that is present is listed and one that is not cannot be.
+builds=""
+for apk in "$@"; do
+    cp "$apk" "$out/repo/"
+    name="$(basename "$apk")"
+    v="${name#sigil-android-v}"; v="${v%.apk}"
+    IFS=. read -r major minor patch <<<"$v"
+    code=$(( major * 1000000 + minor * 1000 + patch ))
+    builds="$builds  - versionName: $v"$'\n'"    versionCode: $code"$'\n'
+    latest_name="$v"; latest_code="$code"
+done
+
+{
+    cat "$repo/fdroid/org.squic.sigil.yml"
+    echo "Builds:"
+    printf '%s' "$builds"
+    echo "CurrentVersion: $latest_name"
+    echo "CurrentVersionCode: $latest_code"
+} > "$out/metadata/org.squic.sigil.yml"
+
+# 0600: the passphrase is in it.
+( umask 077; cat > "$out/config.yml" <<EOF
+repo_url: "https://wave-cl.github.io/sigil-android/fdroid/repo"
+repo_name: "Sigil"
+repo_description: "Voice calls and end-to-end encrypted chat over sQUIC. The APKs here are the same artefacts as this project's GitHub releases, signed with the same key."
+repo_icon: "icon.png"
+archive_older: 0
+keystore: "$keystore"
+repo_keyalias: "sigil-fdroid"
+keystorepass: "$pass"
+keypass: "$pass"
+keydname: "CN=Sigil F-Droid repo, O=squic.org"
+EOF
+)
+
+( cd "$out" && fdroid update --pretty )
+
+# The index is the deliverable; a run that produced one without our
+# versions in it would otherwise look exactly like a run that worked.
+python3 - "$out/repo/index-v2.json" "$latest_code" <<'PY'
+import json, sys
+index, latest = sys.argv[1], int(sys.argv[2])
+d = json.load(open(index))
+p = d["packages"]["org.squic.sigil"]
+codes = sorted(v["manifest"]["versionCode"] for v in p["versions"].values())
+assert latest in codes, f"{latest} is not in the index: {codes}"
+missing = [v["manifest"]["versionCode"] for v in p["versions"].values()
+           if not (v.get("whatsNew") or {}).get("en-US")]
+assert not missing, f"no changelog reached these versions: {sorted(missing)}"
+m = p["metadata"]
+assert m.get("license") == "MIT", m.get("license")
+assert m["screenshots"]["phone"]["en-US"], "no screenshots in the index"
+print(f"index: {len(codes)} versions {codes}, newest {latest}, "
+      f"{len(m['screenshots']['phone']['en-US'])} screenshots, changelogs on all")
+PY

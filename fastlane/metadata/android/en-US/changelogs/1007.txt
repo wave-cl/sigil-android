@@ -1,0 +1,9 @@
+Stay reachable: an option to keep the connection to your exchange open from
+the phone itself, so calls and messages arrive while Sigil is not in front
+and without installing a push distributor. It is off until you turn it on,
+and says so in the notification shade while it runs.
+
+A ring that reached a phone with the app in the background used to arrive
+silently. It announces itself now.
+
+Your devices can be answered from the shade as well as from the card.

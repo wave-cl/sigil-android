@@ -1,0 +1,102 @@
+# Publish the F-Droid repository to GitHub Pages.
+#
+# The APKs are not built here and are not in the git tree: they are the
+# artefacts of the GitHub releases, downloaded as they were signed, so what
+# F-Droid installs is byte-for-byte what a release attached. That is also
+# why the repository key below signs only the *index* -- the file itself
+# keeps the upload key's signature, and an install from either source
+# upgrades over the other.
+name: F-Droid
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: How many of the most recent releases to publish
+        default: "5"
+
+# Pages wants these; nothing here writes to the repository.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and never cancel one half-done: a partly
+# written index is a repository every client refuses.
+concurrency:
+  group: fdroid-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: fdroidserver
+        run: |
+          eval "$(scripts/fdroid-venv)"
+          echo "PATH=$PATH" >> "$GITHUB_ENV"
+          fdroid --version
+
+      # apksigner and aapt2, which fdroid shells out to. The runner has the
+      # SDK; this only puts the newest build-tools on PATH.
+      - name: Android build-tools
+        run: |
+          bt="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          echo "$bt" >> "$GITHUB_PATH"
+          echo "using $bt"
+
+      - name: Release APKs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEEP: ${{ github.event.inputs.versions || '5' }}
+        run: |
+          mkdir -p apks
+          # Newest first, oldest of the kept set downloaded first so the
+          # repository's version order matches the releases'.
+          tags="$(gh release list --repo "$GITHUB_REPOSITORY" --limit 50 \
+                    --json tagName,isDraft,isPrerelease \
+                    -q '.[] | select(.isDraft or .isPrerelease | not) | .tagName' \
+                  | head -n "$KEEP" | tac)"
+          [ -n "$tags" ] || { echo "no releases to publish"; exit 1; }
+          for t in $tags; do
+            echo "::group::$t"
+            gh release download "$t" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --dir apks
+            echo "::endgroup::"
+          done
+          ls -l apks
+
+      - name: Repository key
+        env:
+          B64: ${{ secrets.SIGIL_FDROID_KEYSTORE_B64 }}
+        run: |
+          [ -n "$B64" ] || { echo "SIGIL_FDROID_KEYSTORE_B64 is not set (docs/fdroid.md)"; exit 1; }
+          umask 077
+          printf '%s' "$B64" | base64 -d > "$RUNNER_TEMP/fdroid-key.p12"
+          echo "SIGIL_FDROID_KEYSTORE=$RUNNER_TEMP/fdroid-key.p12" >> "$GITHUB_ENV"
+
+      - name: Build the index
+        env:
+          SIGIL_FDROID_KEYSTORE_PASSWORD: ${{ secrets.SIGIL_FDROID_KEYSTORE_PASSWORD }}
+        run: |
+          [ -n "$SIGIL_FDROID_KEYSTORE_PASSWORD" ] || { echo "SIGIL_FDROID_KEYSTORE_PASSWORD is not set"; exit 1; }
+          scripts/fdroid-repo build apks/*.apk
+
+      - name: Assemble the site
+        run: |
+          mkdir -p site/fdroid
+          cp fdroid/index.html site/index.html
+          cp -R build/repo site/fdroid/repo
+          du -sh site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

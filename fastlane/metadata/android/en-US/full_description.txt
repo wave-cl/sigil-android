@@ -1,0 +1,44 @@
+Sigil is a phone client for the sQUIC exchange: voice calls and end-to-end
+encrypted messaging with the people, groups and channels of an account whose
+key lives on your own machine.
+
+A phone is a device of the account, not the account. Start a new account on
+the phone itself, or pair it from a desktop Sigil in two strings. Either way
+there is no password, no phone number and no e-mail address, and the phone
+holds a key of its own, sealed by the Android key store. Remove the device
+from the account and it is gone.
+
+Features
+
+* Voice calls, one to one and in rooms, that ring on a locked screen
+* Direct messages, groups and public channels; replies, reactions, edits,
+  files and images
+* Notifications composed on the phone from messages only it can decrypt,
+  under your setting of how much they say
+* Two ways to hear about a call or a message while the app is closed: a
+  UnifiedPush distributor of your choosing (ntfy and others), or "Stay
+  reachable", which keeps the connection open from the phone itself and
+  needs nothing installed
+* Nothing sent to the developer: no analytics, no crash reporting, no
+  advertising, and the phone's contacts are never read
+
+No Google services
+
+Sigil contains no Firebase, no Google Play Services and no tracking library
+of any kind. Push, if you want it, goes through UnifiedPush and a
+distributor you chose; without one the app can stay reachable on its own.
+
+What you need
+
+An account on an exchange. Run your own, or use one that is open to
+newcomers -- the app suggests trunk.exchange, where a new account may claim
+a name and is put into a public channel so there is somebody to talk to.
+
+What the exchange can and cannot see
+
+Messages, files and call audio are encrypted between the devices that hold
+the keys; the exchange stores ciphertext and cannot read any of it. It does
+know which device connected and when, and which conversations your account
+is in -- membership is what it enforces on, so it is held in the clear.
+"The exchange cannot read your messages" is true; it is not the same
+sentence as "the exchange does not know who you talk to".

@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#
+# Put `fdroid` on PATH, in a virtual environment of its own.
+#
+#   eval "$(scripts/fdroid-venv)"      # adds it to PATH in this shell
+#   scripts/fdroid-venv --path         # just print the bin directory
+#
+# fdroidserver is a Python package. Homebrew's bottle of it wants to build
+# GCC from source on this machine, which takes hours; pip takes a minute.
+set -euo pipefail
+
+venv="${SIGIL_FDROID_VENV:-$HOME/.cache/sigil-fdroid-venv}"
+if [ ! -x "$venv/bin/fdroid" ]; then
+    python3 -m venv "$venv" >&2
+    "$venv/bin/pip" install --quiet --upgrade pip >&2
+    "$venv/bin/pip" install --quiet fdroidserver >&2
+fi
+
+case "${1:-}" in
+    --path) echo "$venv/bin" ;;
+    *)      echo "export PATH=\"$venv/bin:\$PATH\"" ;;
+esac

@@ -1,0 +1,10 @@
+Video clips: a bubble draws the clip's own still while it is still going
+up, and a tap opens it on the whole screen -- pictures too -- with a name
+to save it under.
+
+The backup keeps itself up to date (SIP-48), and says so where the dates
+are.
+
+A channel's settings are rows that say what they do, with what cannot be
+undone kept behind a button of its own. The directory arrives full rather
+than filling in. Rows are sized for a finger.

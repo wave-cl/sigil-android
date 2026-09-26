@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#
+# Make the F-Droid repository's signing key: a PKCS12 keystore holding one
+# RSA key and a self-signed certificate, which signs the repository *index*.
+#
+#   scripts/fdroid-key [PATH]     # default ~/.sigil-fdroid-key.p12
+#
+# Not the key APKs are signed with. An APK in our repository keeps the
+# upload key's signature it left CI with, so an install from F-Droid and an
+# install from a GitHub release are the same artefact and upgrade over each
+# other. This key signs the index that says which APKs are ours -- it is
+# what stops somebody who can write to the published site serving a
+# different one.
+#
+# **A repository's key cannot be rotated.** F-Droid clients pin it the
+# moment somebody adds the repository; a new key is a new repository, which
+# every user must add again. Back this file up with the same care as the
+# upload key, and never let it reach the git tree.
+#
+# The passphrase is made here and written beside the keystore rather than
+# typed: it is random, nobody needs to remember it, and it is read from the
+# file by the workflow that uses it.
+set -euo pipefail
+
+out="${1:-$HOME/.sigil-fdroid-key.p12}"
+pass="${out%.p12}.pass"
+alias=sigil-fdroid
+[ -e "$out" ] && { echo "$out exists; not overwriting"; exit 1; }
+[ -e "$pass" ] && { echo "$pass exists; not overwriting"; exit 1; }
+
+# The passphrase first, so the keystore is never made without one to read.
+( umask 077; openssl rand -base64 33 | tr -d '\n' > "$pass" )
+chmod 600 "$pass"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+# 4096-bit RSA: this key is pinned by every client for the life of the
+# repository and cannot be replaced, so it is sized for that, not for a
+# store's minimum. 10000 days is past 2053.
+openssl req -x509 -newkey rsa:4096 -noenc -days 10000 \
+    -keyout "$tmp/key.pem" -out "$tmp/cert.pem" \
+    -subj "/CN=Sigil F-Droid repo/O=squic.org" 2>/dev/null
+openssl pkcs12 -export -inkey "$tmp/key.pem" -in "$tmp/cert.pem" \
+    -name "$alias" -out "$out" -passout "file:$pass"
+chmod 600 "$out"
+
+echo "wrote $out (alias $alias)"
+echo "wrote $pass"
+echo
+echo "the certificate fingerprint, which is what a client pins:"
+openssl x509 -in "$tmp/cert.pem" -noout -fingerprint -sha256 | sed 's/^/  /'
+echo
+echo "for the workflow's secrets (docs/fdroid.md):"
+echo "  gh secret set SIGIL_FDROID_KEYSTORE_B64 < <(base64 -i $out)"
+echo "  gh secret set SIGIL_FDROID_KEYSTORE_PASSWORD < $pass"

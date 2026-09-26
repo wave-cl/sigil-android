@@ -1,0 +1,10 @@
+The phone follows the system's light or dark theme.
+
+Being woken: the running app now registers its push endpoint with the
+exchange when it connects, and takes it back when you turn it off. Until
+now only the wake window re-registered, so a first registration never
+happened.
+
+A session told its account has moved is parked rather than retried for
+ever, and a session draws what it already holds before it dials -- so the
+opening screen is no longer blank while it connects.

@@ -1,0 +1,1 @@
+Calls and end-to-end encrypted chat over sQUIC, as a device of your account.

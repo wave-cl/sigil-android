@@ -1,0 +1,11 @@
+Voice notes: hold to record, watch the waveform in the composer, and send
+it with the waveform it drew. They play in the conversation.
+
+Calling somebody whose account lives at another exchange.
+
+A call that ends now ends on both sides.
+
+A direct message is no longer treated as a channel that happens to have two
+people in it, and Delete is offered only to somebody who may delete.
+
+An earlier copy of a conversation is on the screen, not only on the disc.
