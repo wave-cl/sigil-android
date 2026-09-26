@@ -66,7 +66,27 @@ object Audio {
                 .setAudioAttributes(attrs)
                 .build()
             focus = want
-            am.requestAudioFocus(want)
+            val granted = am.requestAudioFocus(want)
+            // **Read back what was achieved, not what was asked.** Neither of
+            // the two lines above reports a refusal by throwing: `mode` is a
+            // request the platform may decline, which is why `dumpsys audio`
+            // prints a requested mode and an actual one separately, and
+            // `requestAudioFocus` returns its answer rather than raising it.
+            // This handset ignores focus requests from apps it does not
+            // consider foreground -- fifteen of them in its own log -- and the
+            // only symptom of that would be music playing under a call, with
+            // nothing anywhere saying why.
+            Log.i(TAG, "audio session taken: ${focusWord(granted)}, ${state(am)}")
+            if (granted != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                Log.w(TAG, "the call has no audio focus: music will play under it")
+            }
+            if (am.mode != AudioManager.MODE_IN_COMMUNICATION) {
+                Log.w(
+                    TAG,
+                    "the call is not in the communication mode: no echo canceller, " +
+                        "no automatic gain, no noise suppressor"
+                )
+            }
         } catch (e: Exception) {
             // A call without the session is worse than a call, and better than
             // no call: say so and carry on.
@@ -89,6 +109,9 @@ object Audio {
             }
             wasMode?.let { am.mode = it }
             wasMode = null
+            // The other half of the readout: a mode that was not given back is
+            // a phone that stays wrong after the call, and it is silent.
+            Log.i(TAG, "audio session given back: ${state(am)}")
         } catch (e: Exception) {
             Log.w(TAG, "could not give the call's audio session back", e)
         }
@@ -110,21 +133,32 @@ object Audio {
         val am = manager(ctx)
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val want = if (on) {
-                    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                if (on) {
+                    val speaker = am.availableCommunicationDevices
+                        .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                    if (speaker != null) {
+                        am.setCommunicationDevice(speaker)
+                    } else {
+                        Log.w(TAG, "this device offers no loudspeaker to move the call to")
+                    }
                 } else {
-                    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
-                }
-                val device = am.availableCommunicationDevices.firstOrNull { it.type == want }
-                when {
-                    device != null -> am.setCommunicationDevice(device)
-                    // **No earpiece is not a failure.** On a tablet, or with a
-                    // headset in the way, "earpiece" means "stop forcing the
-                    // loudspeaker and let the platform choose" -- which is what
-                    // clearing does. Asking for a speaker that is not there is
-                    // a different thing and has nothing to fall back to.
-                    !on -> am.clearCommunicationDevice()
-                    else -> Log.w(TAG, "this device offers no loudspeaker to move the call to")
+                    // **"Not the loudspeaker" is a release, not a choice of
+                    // earpiece.** Clearing lets the platform pick, and in
+                    // `MODE_IN_COMMUNICATION` it picks the earpiece on a bare
+                    // phone and the headset when one is plugged in or paired --
+                    // which is what somebody wearing a headset means by this
+                    // button. Naming `TYPE_BUILTIN_EARPIECE` outright, as this
+                    // did, takes the call off their headset and holds it
+                    // against the phone; the comment here already said a
+                    // headset takes precedence, and the code did the opposite.
+                    am.clearCommunicationDevice()
+                    // Insist only if letting go left it on the loudspeaker,
+                    // which some devices do by keeping the last route.
+                    if (speakerOn(ctx)) {
+                        am.availableCommunicationDevices
+                            .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE }
+                            ?.let { am.setCommunicationDevice(it) }
+                    }
                 }
             } else {
                 @Suppress("DEPRECATION")
@@ -133,7 +167,11 @@ object Audio {
         } catch (e: Exception) {
             Log.w(TAG, "could not move the call's sound", e)
         }
-        return speakerOn(ctx)
+        val got = speakerOn(ctx)
+        if (got != on) {
+            Log.i(TAG, "asked for the ${if (on) "loudspeaker" else "earpiece"}; ${state(am)}")
+        }
+        return got
     }
 
     /** Where the call's sound is coming out now. */
@@ -151,5 +189,50 @@ object Audio {
             Log.w(TAG, "could not read where the call's sound is going", e)
             false
         }
+    }
+
+    /**
+     * The mode and the route as `dumpsys audio` would show them, for one line
+     * in the log at each end of a call.
+     *
+     * Spelt the same way the platform's own dump does -- the mode by name, the
+     * route by device type -- so a reading taken here and a reading taken with
+     * `adb shell dumpsys audio` can be put side by side.
+     */
+    private fun state(am: AudioManager): String {
+        val route = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            am.communicationDevice?.let { deviceWord(it.type) } ?: "none"
+        } else {
+            @Suppress("DEPRECATION")
+            if (am.isSpeakerphoneOn) "speaker" else "platform's choice"
+        }
+        return "mode=${modeWord(am.mode)} route=$route"
+    }
+
+    private fun modeWord(mode: Int): String = when (mode) {
+        AudioManager.MODE_NORMAL -> "NORMAL"
+        AudioManager.MODE_RINGTONE -> "RINGTONE"
+        AudioManager.MODE_IN_CALL -> "IN_CALL"
+        AudioManager.MODE_IN_COMMUNICATION -> "IN_COMMUNICATION"
+        else -> "mode $mode"
+    }
+
+    private fun focusWord(granted: Int): String = when (granted) {
+        AudioManager.AUDIOFOCUS_REQUEST_GRANTED -> "focus granted"
+        AudioManager.AUDIOFOCUS_REQUEST_FAILED -> "focus refused"
+        AudioManager.AUDIOFOCUS_REQUEST_DELAYED -> "focus delayed"
+        else -> "focus answered $granted"
+    }
+
+    private fun deviceWord(type: Int): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "earpiece"
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "speaker"
+        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "wired headset"
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "wired headphones"
+        AudioDeviceInfo.TYPE_USB_HEADSET -> "usb headset"
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "bluetooth"
+        AudioDeviceInfo.TYPE_BLE_HEADSET -> "bluetooth le"
+        AudioDeviceInfo.TYPE_HEARING_AID -> "hearing aid"
+        else -> "device type $type"
     }
 }
