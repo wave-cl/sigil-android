@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- No action bar, no system-drawn chrome: egui draws the whole
          surface, and the window's colour is sigil's own. -->
     <style name="Theme.Sigil" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@android:color/black</item>
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <!-- API 27, against a minSdk of 26. A platform that does not know
+             this attribute ignores it, and a phone old enough not to know it
+             has no display cutout to lay out around — so the one release
+             where the two overlap loses nothing. Marked rather than moved to
+             `values-v27`, because a whole second theme file for one line
+             somebody would have to keep in step is the worse trade.
+
+             It was `NewApi` all along and nothing said so: the release build
+             runs `lintVital`, which only reports fatal-severity checks, and
+             `scripts/check` ran no gradle lint at all. -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="27">shortEdges</item>
     </style>
 </resources>

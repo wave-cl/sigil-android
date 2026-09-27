@@ -11,3 +11,21 @@ fi
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+
+# **The Kotlin half, which nothing here checked.** `scripts/build-apk` runs
+# `lintVitalRelease` as part of assembling, and `lintVital` reports only
+# *fatal*-severity issues -- so `NewApi`, which is an error, never appeared.
+# A theme attribute needing API 27 sat in `values/themes.xml` against a
+# minSdk of 26 for as long as that file has existed, and an unguarded call to
+# an API-31 class compiled and assembled without a word. The full lint says
+# both immediately.
+#
+# Skipped, not failed, where there is no Android SDK: the Rust checks above
+# are the useful half on a machine that cannot build the app at all, and
+# refusing to run them there would make this script the thing nobody runs.
+if [ -n "${ANDROID_HOME:-}" ] && [ -n "${JAVA_HOME:-}" ]; then
+    (cd android && ./gradlew --quiet :app:lintRelease)
+else
+    echo "note: ANDROID_HOME/JAVA_HOME unset — skipping the Android lint." >&2
+    echo "      That is the only check for API-level misuse; set them before a push." >&2
+fi
