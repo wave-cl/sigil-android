@@ -31,6 +31,24 @@ impl eframe::App for Sigil {
                 egui::Theme::Light
             });
         }
+        // **A Back that came in from Kotlin, as the key the shell reads.**
+        // Empty on the handset sigil is developed against, where winit takes
+        // `KEYCODE_BACK` off the input queue itself; set on a phone whose
+        // framework takes the gesture first, which `MainActivity.takeBack`
+        // explains. Either way the shell sees one kind of event, and this is
+        // where the other kind becomes it -- before anything is drawn, so a
+        // press is handled in the pass it arrives in rather than the next.
+        if super::platform::take_back() {
+            ctx.input_mut(|i| {
+                i.events.push(egui::Event::Key {
+                    key: egui::Key::BrowserBack,
+                    physical_key: None,
+                    pressed: true,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                });
+            });
+        }
         let unfocused = !ctx.input(|i| i.viewport().focused.unwrap_or(true));
         self.shell.update_all(ctx, unfocused);
     }
@@ -48,6 +66,14 @@ impl eframe::App for Sigil {
             right: right as f32 / ppp,
         });
         self.shell.ui(ui);
+        // **After the interface, not before it.** This is the answer Kotlin
+        // reads on the *next* press, and `Shell::ui` is where a press is
+        // acted on -- so asked from `logic`, a phase earlier, it described
+        // the screen the press had already left. The second Back, on the
+        // opening screen, still said there was somewhere to go and the app
+        // could not be left: seen on the handset, and the reason this line
+        // is here and not there.
+        super::platform::set_can_go_back(self.shell.back_reaches_something(ui.ctx()));
     }
 }
 
@@ -55,6 +81,15 @@ impl eframe::App for Sigil {
 /// so `~/.sqnr`, `~/.sqex` and `~/.local/share/sigil` land where only this
 /// app can read them. Done once, before anything asks.
 pub fn point_home(files_dir: &std::path::Path) {
+    // **And which package this is**, for the one version line a phone can
+    // read. It rides along here because this is the process preamble every
+    // entry point already calls -- the window, the wake window, the decline
+    // -- and a version said from only one of them is a version a future
+    // entry forgets. `CARGO_PKG_VERSION` is this workspace's, and Gradle
+    // reads the APK's `versionName` out of the same `[workspace.package]`,
+    // so it is the number the launcher, F-Droid and `adb` show by
+    // construction rather than by two literals being kept in step.
+    sigil::build::packaged_as(env!("CARGO_PKG_VERSION"));
     if std::env::var_os("HOME").is_none() {
         // SAFETY: called before any other thread exists, from the entry or
         // the first JNI call into this library.

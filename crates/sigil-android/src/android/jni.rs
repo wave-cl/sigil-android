@@ -362,6 +362,31 @@ pub extern "system" fn Java_org_squic_sigil_Native_showCall(
     }
 }
 
+/// `Native.back()`: the system's Back, handed over by the activity.
+///
+/// Queued for the next pass, where it becomes the `BrowserBack` key the
+/// shell has always read. Kotlin has already decided that sigil wants this
+/// press -- see `Native.canGoBack` -- so there is nothing to answer here.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_org_squic_sigil_Native_back(_env: JNIEnv, _class: JClass) {
+    platform::back_pressed();
+}
+
+/// `Native.canGoBack()`: does sigil want the Back press, or should the
+/// system have it?
+///
+/// Answered from the system's own thread while a frame may be drawing, so it
+/// is the last frame's answer. `Shell::back_reaches_something` says what that
+/// costs and why it is the right trade: the alternative is asking the
+/// interface synchronously from a thread that must not block on it.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_org_squic_sigil_Native_canGoBack(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jni::sys::jboolean {
+    jni::sys::jboolean::from(platform::can_go_back())
+}
+
 /// `Native.hangUp(identity)`: the person ended the call from its notice.
 ///
 /// **From a broadcast receiver, with nothing drawn and nothing brought to

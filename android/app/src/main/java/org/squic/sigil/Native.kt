@@ -70,6 +70,27 @@ object Native {
     external fun link(url: String)
 
     /**
+     * The system's Back was pressed. Queued for the next pass, where it
+     * becomes the key event the shell reads.
+     *
+     * Only for the phones where the press does not reach winit on its own;
+     * see [MainActivity] for which those are and why this is not the path
+     * the handset takes.
+     */
+    external fun back()
+
+    /**
+     * Whether sigil has anywhere to go back to. Asked by [MainActivity]
+     * *before* it hands a press over, because the framework leaves the app
+     * when nothing answers and the decision cannot wait for a frame.
+     *
+     * The last frame's answer. Being one frame stale costs at most a press
+     * that does nothing; the alternative is blocking the system's thread on
+     * the interface.
+     */
+    external fun canGoBack(): Boolean
+
+    /**
      * What the system draws over the surface, in pixels: status bar, gesture
      * bar or keyboard, cutouts. From [Insets], whenever it changes.
      */

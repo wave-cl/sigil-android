@@ -33,6 +33,7 @@ const GLUE: &[&str] = &[
     "CallService",
     "ReachService",
     "Audio",
+    "Host",
 ];
 
 /// Called from `JNI_OnLoad`, which runs when either the activity or the

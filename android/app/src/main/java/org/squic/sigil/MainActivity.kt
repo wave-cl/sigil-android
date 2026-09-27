@@ -39,6 +39,60 @@ class MainActivity : NativeActivity() {
             if (found) UnifiedPush.register(this)
         }
         handle(intent)
+        takeBack()
+    }
+
+    /**
+     * **Back, for the phones where it does not reach winit.**
+     *
+     * There are two ways Back can arrive. On the handset sigil is developed
+     * against it comes through the `NativeActivity` input queue, where winit
+     * reads it, maps `KEYCODE_BACK` to `BrowserBack` and marks it handled --
+     * so the shell gets it and none of this runs. Confirmed on the device:
+     * with a log on [systemBack], Back navigated and the log never printed
+     * once, because that OEM turns the dispatcher hook off for us
+     * (`OplusPredictiveBackController: should not
+     * HookOnBackInvokedCallbackEnabled`).
+     *
+     * The other way is the one `targetSdk` 36 opts into on a stock phone:
+     * `WindowOnBackDispatcher` takes the gesture ahead of the input queue,
+     * and an application that registers nothing gets the framework's default
+     * -- finishing the activity, from any screen, with no step back at all.
+     * This is for those, and it is **unverified**: this hardware cannot
+     * enter that path, so it has been reasoned from the platform's contract
+     * and not seen working. Test it on a stock device before believing it.
+     *
+     * Registered on 33 and above, where the dispatcher exists;
+     * [onBackPressed] is the same decision for the phones below it. Both
+     * call [systemBack], and only one of them can fire for a given press --
+     * a dispatcher that takes the gesture does not also queue the key.
+     */
+    private fun takeBack() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+            ) { systemBack() }
+        }
+    }
+
+    /**
+     * Ask the interface first, and leave only when it has nothing behind the
+     * screen: a menu to close, a step of history, or an app on screen, which
+     * on a phone always has one more step -- close the conversation, then
+     * show the identity it belongs to.
+     *
+     * Leaving goes through [Host.leave], which says why it moves the task to
+     * the back rather than finishing: finishing this activity leaves eframe's
+     * loop with no window and the app comes back to a splash screen it never
+     * gets past.
+     */
+    private fun systemBack() {
+        if (Native.canGoBack()) Native.back() else Host.leave()
+    }
+
+    @Deprecated("The framework calls this below API 33; above it, takeBack's callback")
+    override fun onBackPressed() {
+        systemBack()
     }
 
     /**
@@ -113,41 +167,23 @@ class MainActivity : NativeActivity() {
     /**
 
      * The microphone and notifications are runtime permissions: the manifest
-
      * declares them, and Android grants them only through a prompt. Nothing
-
      * prompted, so every call ended the moment it connected -- the microphone
-
      * would not open -- and no notification was ever shown. Asked once, at
-
      * the start; a refusal is remembered by the system and not asked again
-
      * every launch.
-
      */
-
     private fun askForWhatCallsNeed() {
-
         val wanted = mutableListOf(android.Manifest.permission.RECORD_AUDIO)
-
         if (android.os.Build.VERSION.SDK_INT >= 33) {
-
             wanted += android.Manifest.permission.POST_NOTIFICATIONS
-
         }
-
         val missing = wanted.filter {
-
             checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED
-
         }
-
         if (missing.isNotEmpty()) {
-
             requestPermissions(missing.toTypedArray(), PERMISSIONS)
-
         }
-
     }
 
 

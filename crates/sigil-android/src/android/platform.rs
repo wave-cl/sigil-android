@@ -2,6 +2,7 @@
 //! choosing, the endpoint, and the phone the wake window talks to.
 
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use jni::objects::JValue;
 use sigil::app::{CallPress, Notice, Notify, Sound, Target};
@@ -115,6 +116,18 @@ pub fn set_speaker(on: bool) -> Result<bool, String> {
     })
 }
 
+/// `Host.leave()`: Back was pressed with nothing behind the screen.
+///
+/// No context: the activity is what leaves, and `Host` is already holding
+/// the one on screen. Nothing to report -- there is no window left to tell.
+pub fn leave() -> Result<(), String> {
+    with_env(|env, _context| {
+        let class = bridge::class("Host")?;
+        env.call_static_method(class, "leave", "()V", &[])?;
+        Ok(())
+    })
+}
+
 /// `CallService.end(context)`: the call is over, let the process go.
 pub fn end_call() -> Result<(), String> {
     bridge::call_static_with_context("CallService", "end", "(Landroid/content/Context;)V", &[])
@@ -222,6 +235,56 @@ pub fn pressed(target: Target) {
     }
 }
 
+/// The system's Back, pressed, on the phones where it does not reach winit.
+///
+/// Ordinarily it does: Back arrives on the `NativeActivity` input queue,
+/// winit maps `KEYCODE_BACK` to `Key::BrowserBack` and marks it handled, and
+/// the shell reads it. That is what happens on the handset sigil is
+/// developed against, and this path never runs there -- see
+/// `MainActivity.takeBack` for how that was established and for the case
+/// this exists for, which is a stock phone whose framework takes the gesture
+/// before the input queue ever sees it.
+///
+/// So the press can also come in from Kotlin, and is turned back into the
+/// key the shell already knows rather than given a path of its own. A flag
+/// rather than a count: two presses inside one frame are one press as far as
+/// anybody holding the phone is concerned, and a queue would spend the
+/// second on whatever the first arrived at.
+static BACK: AtomicBool = AtomicBool::new(false);
+
+/// Called from the JNI export behind the system's Back.
+///
+/// And asks for a frame. A press arrives on a screen egui has no other
+/// reason to redraw -- a still conversation, the opening screen -- and a
+/// phone draws nothing while it is idle, so without this the press would sit
+/// in the flag until something else happened to want a frame.
+pub fn back_pressed() {
+    BACK.store(true, Ordering::Relaxed);
+    if let Some(repaint) = REPAINT.get() {
+        repaint();
+    }
+}
+
+/// Taken by the frame, which pushes the key event the shell reads.
+pub fn take_back() -> bool {
+    BACK.swap(false, Ordering::Relaxed)
+}
+
+/// Whether the interface has anywhere to go back to, as of the last frame.
+///
+/// Read from the system's thread while a frame may be in flight, which is
+/// why it is an atomic and why the answer is allowed to be one frame old.
+/// See `Shell::back_reaches_something` for what being wrong costs.
+static CAN_GO_BACK: AtomicBool = AtomicBool::new(false);
+
+pub fn set_can_go_back(can: bool) {
+    CAN_GO_BACK.store(can, Ordering::Relaxed);
+}
+
+pub fn can_go_back() -> bool {
+    CAN_GO_BACK.load(Ordering::Relaxed)
+}
+
 /// Presses on the notice a live call stands behind.
 ///
 /// A second queue rather than a `Target` with a flag on it: these arrive from
@@ -251,6 +314,23 @@ impl Default for AndroidNotifier {
 }
 
 impl Notify for AndroidNotifier {
+    /// Back with nothing behind the screen: go.
+    ///
+    /// **Why the interface asks and not the activity.** winit takes
+    /// `KEYCODE_BACK` off the `NativeActivity` input queue and marks it
+    /// handled, so `onBackPressed` is never called and the Java side never
+    /// learns the press happened. The shell is the only thing that knows
+    /// there is nothing left behind the screen, so the shell is what says so.
+    fn leave(&self) -> bool {
+        match leave() {
+            Ok(()) => true,
+            Err(why) => {
+                tracing::warn!("could not leave: {why}");
+                false
+            }
+        }
+    }
+
     fn notice(&self, notice: Notice<'_>) -> bool {
         let (identity, exchange, channel) = match &notice.target {
             Some(t) => (t.identity.to_string(), t.exchange.clone(), Some(t.channel)),
