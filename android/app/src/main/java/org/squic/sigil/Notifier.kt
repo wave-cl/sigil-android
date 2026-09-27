@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.RingtoneManager
+import android.os.Build
 
 /**
  * The platform's notification surface, and the only consumer of what the
@@ -172,8 +173,44 @@ object Notifier {
             // taken down by `endRing` when the call is answered, declined
             // or given up on, which is the only thing that knows.
             .setOngoing(true)
-            .addAction(Notification.Action.Builder(null, ctx.getString(R.string.answer), answer).build())
-            .addAction(Notification.Action.Builder(null, ctx.getString(R.string.decline), decline).build())
+            .also { b ->
+                // **The platform's own shape for a ring, where there is
+                // one.** `CallStyle` is what every other phone call on this
+                // device uses: the caller named as a `Person`, Answer and
+                // Decline drawn as call buttons in their own colours rather
+                // than as two words in a row of generic actions, and the
+                // notification ranked as a call instead of as a message that
+                // happens to say "Calling". A ring built out of plain
+                // actions is the one notification on the shade that looks
+                // less like a call than the rest of them.
+                //
+                // `CATEGORY_CALL` and the full-screen intent above were
+                // already saying this to the ranker; this says it to the
+                // person. The style supplies its own two actions, so the
+                // hand-built pair stays on the other branch rather than
+                // being added twice.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val caller = android.app.Person.Builder()
+                        .setName(who)
+                        .setImportant(true)
+                        .build()
+                    b.setStyle(
+                        Notification.CallStyle.forIncomingCall(caller, decline, answer)
+                    )
+                } else {
+                    // API 26-30: the same two things to press, named.
+                    b.addAction(
+                        Notification.Action.Builder(
+                            null, ctx.getString(R.string.answer), answer
+                        ).build()
+                    )
+                    b.addAction(
+                        Notification.Action.Builder(
+                            null, ctx.getString(R.string.decline), decline
+                        ).build()
+                    )
+                }
+            }
             .build()
         ctx.getSystemService(NotificationManager::class.java).notify(channelHex, 2, n)
     }
