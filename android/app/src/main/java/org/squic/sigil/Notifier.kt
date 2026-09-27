@@ -69,6 +69,36 @@ object Notifier {
     /**
      * A message notification. One per conversation: `tag` keys it, so a later
      * window replaces rather than stacks, as SIP-47 asks. Called from Rust.
+     *
+     * # Why this is not `MessagingStyle`
+     *
+     * It is the obvious modernisation -- the style that puts a conversation
+     * in the shade's Conversations section, with the sender's face and their
+     * words as bubbles -- and it cannot be used here without giving away
+     * what SIP-47 exists to withhold.
+     *
+     * `MessagingStyle` is built around a `Person` and models a conversation.
+     * `Privacy` has three levels and only the first has both to give:
+     *
+     *  - `SenderAndText` -- who wrote and what. The style would fit.
+     *  - `SenderOnly` -- who wrote, and *nothing of what*. The style would
+     *    draw a named person with an empty bubble, which is a worse way of
+     *    saying less than a line is.
+     *  - `FactOnly` -- that something arrived, and nothing else: no sender,
+     *    no conversation, and **one notice for everything** rather than one
+     *    per conversation. There is no `Person` and no conversation to model.
+     *
+     * And this side could not tell them apart if it wanted to. It is handed
+     * `title` and `body` already composed under the setting, and adds nothing
+     * to them -- which is the whole reason the decision lives where the
+     * setting does. Reaching for a sender here would mean this file deciding
+     * what may be disclosed, from two strings that cannot say.
+     *
+     * Doing it properly means Rust passing the sender separately and the
+     * level deciding whether to, with the style used only at
+     * `SenderAndText`, plus a long-lived dynamic shortcut per conversation
+     * for the Conversations section to accept it. That is a real design and
+     * a cross-language one; it is not a `setStyle` call.
      */
     @JvmStatic
     fun message(
