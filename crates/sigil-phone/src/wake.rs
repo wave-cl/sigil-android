@@ -31,6 +31,17 @@ pub async fn register(client: &mut sqnr::Client, endpoint: &str, ttl: u32) -> Re
     let req = Register {
         ttl: ttl.clamp(1, MAX_TTL),
         endpoint: endpoint.to_string(),
+        // SIP-50: **not** quiet, and the same answer the running client
+        // gives in `sigil_chat::session::tell_wake`. The flag is for a
+        // device that does not want to count toward its account's reach;
+        // this is the registration that *is* the reach -- a phone saying it
+        // can be woken -- and a quiet one would report its owner
+        // unreachable while the one thing that can reach them is listening.
+        //
+        // These two paths have diverged six times and each divergence was
+        // found one report at a time, so: when a wire field is added, answer
+        // it in both.
+        quiet: false,
     };
     match client.post("/wake/register", req.encode()).await {
         Ok((200, _)) => Registered::Kept,
