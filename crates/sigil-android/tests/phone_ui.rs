@@ -241,6 +241,61 @@ fn the_phones_key_is_shown_whole_on_one_line() {
     );
 }
 
+/// **A caption has to sit on the thing it captions.**
+///
+/// `sqx-device:` is the scheme half of the string the QR carries, split off
+/// so that the key beneath it can be read out as one line. It shares its row
+/// with the Copy button -- and a row is at least `interact_size` tall, which
+/// on a phone is 44 points. So a 14-point caption was centred in a 44-point
+/// row and floated a finger's width above the key it belongs to, with the
+/// result that the two read as separate facts: a label with a button and
+/// nothing after it, then a key from nowhere. Seen on the handset.
+#[test]
+fn the_scheme_sits_on_the_key_it_captions() {
+    fn rect_of(h: &Harness<'static>, want: &str) -> Option<(f32, f32)> {
+        fn walk(node: egui_kittest::Node<'_>, want: &str, ppp: f32, out: &mut Option<(f32, f32)>) {
+            let n = node.accesskit_node();
+            let name = n
+                .label()
+                .map(|l| l.to_string())
+                .or_else(|| n.value().map(|v| v.to_string()));
+            if name.as_deref() == Some(want)
+                && let Some(b) = n.bounding_box()
+            {
+                *out = Some((b.y0 as f32 / ppp, b.y1 as f32 / ppp));
+            }
+            for c in node.children() {
+                walk(c, want, ppp, out);
+            }
+        }
+        let mut out = None;
+        walk(h.root(), want, h.ctx.pixels_per_point(), &mut out);
+        out
+    }
+
+    let mut h = harness(capabilities());
+    h.run();
+    h.run();
+    let key = sigil::Account::unlocked_for_test([1u8; 32])
+        .unlocked()
+        .expect("unlocked")
+        .me()
+        .to_string();
+    let caption = rect_of(&h, "sqx-device:").expect("the scheme caption");
+    let below = rect_of(&h, &key).expect("the key");
+    let gap = below.0 - caption.1;
+    let tall = caption.1 - caption.0;
+    assert!(
+        below.0 > caption.0,
+        "the key is not under its caption: {caption:?} {below:?}"
+    );
+    assert!(
+        gap <= tall,
+        "the caption floats {gap} above the key it captions, which is more \
+         than its own height ({tall}) -- they read as two facts"
+    );
+}
+
 #[test]
 fn nothing_in_the_phone_tab_is_out_of_reach() {
     let mut h = harness(capabilities());

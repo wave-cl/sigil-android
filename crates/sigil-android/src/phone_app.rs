@@ -123,17 +123,54 @@ impl App for PhoneApp {
                     // key itself**: forty-four monospace characters and a
                     // button are wider than the pane, and a row wider than
                     // the pane re-lays every row after it.
-                    ui.horizontal(|ui| {
-                        if !scheme.is_empty() {
-                            ui.colored_label(
-                                theme.text_muted,
-                                egui::RichText::new(format!("{scheme}:")).small(),
+                    //
+                    // **And sitting on the key, not floating above it.** A
+                    // row is at least `interact_size` tall -- 44 points on a
+                    // phone -- so a 14-point caption centred in it stood 23
+                    // points clear of the key underneath, and the two read as
+                    // separate facts: a label with a button and nothing after
+                    // it, then a key from nowhere. `Align::Max` puts the
+                    // caption on the row's floor, which is the key's ceiling.
+                    //
+                    // The size is allocated first, because a bare
+                    // `with_layout` in a vertical ui takes the rest of the
+                    // pane; given a size, "the rest" is the rest of the row.
+                    let row = egui::vec2(
+                        ui.available_width(),
+                        sigil::Form::of(ui.ctx()).button_size(),
+                    );
+                    ui.allocate_ui_with_layout(
+                        row,
+                        egui::Layout::left_to_right(egui::Align::Max),
+                        |ui| {
+                            if !scheme.is_empty() {
+                                ui.colored_label(
+                                    theme.text_muted,
+                                    egui::RichText::new(format!("{scheme}:")).small(),
+                                );
+                            }
+                            // **At the row's end, not after the caption.**
+                            // Bottom-aligning the caption put it on the key,
+                            // and left the button's glyph -- centred in a
+                            // 44-point row -- hanging above it, which read as
+                            // a control belonging to nothing. It is the
+                            // block's control, so it goes where the block's
+                            // controls go: the right edge, as the key row on
+                            // the Me card already does. Safe as a
+                            // `with_layout` here, because the row it divides
+                            // was allocated a size.
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    if sigil_ui::icon_button_named(ui, sigil_ui::Icon::Copy, "Copy")
+                                        .clicked()
+                                    {
+                                        ui.ctx().copy_text(shown.clone());
+                                    }
+                                },
                             );
-                        }
-                        if sigil_ui::icon_button_named(ui, sigil_ui::Icon::Copy, "Copy").clicked() {
-                            ui.ctx().copy_text(shown.clone());
-                        }
-                    });
+                        },
+                    );
                     ui.add(
                         egui::Label::new(egui::RichText::new(key).monospace().small())
                             .selectable(true),
