@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+#
+# Run the on-device audio-session tests (crates/../androidTest/AudioTest.kt).
+#
+#   scripts/audio-test            # refuses if the handset holds a sigil account
+#   scripts/audio-test --wipe-ok  # proceed, having read what follows
+#
+# **Why this needs a guard at all.** Gradle's `connectedAndroidTest` installs a
+# debug build, runs, and then *uninstalls the app under test* -- and an Android
+# uninstall takes `/data/user/0/org.squic.sigil` with it: the identity, the
+# store, every conversation. It is the ordinary way to run instrumented tests
+# and it is completely destructive to a phone that is somebody's phone.
+#
+# It was run against a handset carrying a real account whose key existed
+# nowhere else, with no SIP-44 successor to claim it back. The account is gone.
+# A warning in a doc comment did not stop that and would not stop it again, so
+# the check lives here, in front of the command, where it has to be answered.
+set -euo pipefail
+
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+wipe_ok=""
+for arg in "$@"; do
+    case "$arg" in
+        --wipe-ok) wipe_ok="1" ;;
+        *) echo "unknown argument: $arg" >&2; exit 2 ;;
+    esac
+done
+
+if ! command -v adb >/dev/null; then
+    echo "error: adb is not on PATH." >&2
+    exit 1
+fi
+
+devices="$(adb devices | awk 'NR>1 && $2=="device" {print $1}')"
+if [[ -z "$devices" ]]; then
+    echo "error: no handset attached. These tests are the device's answers --" >&2
+    echo "  mode, focus and routing -- and there is nothing to ask without one." >&2
+    exit 1
+fi
+count="$(printf '%s\n' "$devices" | wc -l | tr -d ' ')"
+if [[ "$count" != "1" ]]; then
+    echo "error: $count devices attached; set ANDROID_SERIAL and try again:" >&2
+    printf '  %s\n' $devices >&2
+    exit 1
+fi
+
+# **What is on it, before anything is done to it.** `firstInstallTime` is the
+# tell: a fresh install has today's, and an account somebody has been using
+# does not.
+installed="$(adb shell pm list packages 2>/dev/null | tr -d '\r' | grep -c '^package:org.squic.sigil$' || true)"
+if [[ "$installed" != "0" && -z "$wipe_ok" ]]; then
+    since="$(adb shell dumpsys package org.squic.sigil 2>/dev/null \
+        | tr -d '\r' | awk '/firstInstallTime/ {print $NF; exit}')"
+    cat >&2 <<WARNING
+error: org.squic.sigil is installed on $devices (since ${since:-unknown}).
+
+  Running these tests UNINSTALLS it first, and an uninstall destroys the app's
+  private data: the identity, the store, every conversation. If that identity's
+  key is not written down anywhere else, and no SIP-44 successor was arranged
+  for it, the account cannot be recovered by anybody, ever.
+
+  Check before you answer:
+
+    adb shell dumpsys package org.squic.sigil | grep firstInstallTime
+    sqex succession show <that account's key> --server <its exchange> -i <an identity>
+
+  If the handset is one you are willing to re-provision:
+
+    scripts/audio-test --wipe-ok
+WARNING
+    exit 1
+fi
+
+echo "running the audio-session tests on $devices"
+[[ -n "$wipe_ok" ]] && echo "(--wipe-ok given; org.squic.sigil will be reinstalled and its data lost)"
+cd android
+# Not `"$@"`: `--wipe-ok` is this script's word and gradle refuses an option
+# it does not know, which would turn a guard into a broken command.
+exec ./gradlew connectedDebugAndroidTest

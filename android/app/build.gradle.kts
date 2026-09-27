@@ -65,6 +65,12 @@ android {
         // forgotten bump fail loudly.
         versionName = workspaceVersion
         versionCode = versionCodeOf(workspaceVersion)
+        // **So the audio session can be asserted on a real handset.** Mode,
+        // focus and routing are the platform's answers and a desktop test
+        // cannot ask for them; the only honest instrument is the phone. An
+        // instrumented test reaches `Audio` directly, which opens no
+        // microphone -- that is the media engine's step, and a separate one.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk {
             // What `cargo ndk` built. One ABI per build; scripts/build-apk
             // passes the others through the same property.
@@ -166,4 +172,7 @@ dependencies {
     // no released platform provides (sdkmanager has no platforms;android-37).
     implementation("org.unifiedpush.android:connector:3.3.2")
     implementation("org.unifiedpush.android:embedded-fcm-distributor:3.1.0")
+    // On-device tests. `connectedAndroidTest` with a handset attached.
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
 }
