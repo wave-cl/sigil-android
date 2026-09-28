@@ -64,6 +64,55 @@ jobs:
       - name: test
         run: cd sigil-android && cargo test --workspace
 
+  # ---------------------------------------------------------------------------
+  # The pictures.
+  #
+  # A separate job because the snapshots are `#[ignore]`d -- so `cargo test`
+  # above never runs them, which is the point: an ordinary test run needs no
+  # GPU. Without this job they would be written once and never checked again,
+  # and a snapshot nothing verifies is a decoration.
+  #
+  # `mesa-vulkan-drivers` is the software rasterizer the script looks for;
+  # macOS renders with Metal and the two disagree by a little under 2.0,
+  # which is what `kittest.toml`'s threshold is measured against.
+  # ---------------------------------------------------------------------------
+  snapshots:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: sigil-android
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sigil
+          ref: ${{ env.SIGIL_REF }}
+          path: sigil
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sqex
+          ref: ${{ env.SQEX_REF }}
+          path: sqex
+      - uses: actions/checkout@v4
+        with:
+          repository: wave-cl/sqnr
+          ref: ${{ env.SQNR_REF }}
+          path: sqnr
+      - name: Build dependencies sigil links
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config libasound2-dev libpipewire-0.3-dev \
+            libgtk-3-dev libxdo-dev libpcsclite-dev libxkbcommon-dev libwayland-dev \
+            mesa-vulkan-drivers
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: sigil-android
+          key: ubuntu-22.04
+      - name: Snapshots
+        run: cd sigil-android && scripts/snapshot-test
+
   # The phone, cross-built. ubuntu-latest carries the SDK and an NDK.
   android:
     runs-on: ubuntu-latest
