@@ -204,6 +204,22 @@ fn phone_tab() {
     h.snapshot("phone_tab");
 }
 
+/// **The pane before anything can wake the phone**, which is what a new
+/// phone shows: UnifiedPush needs a distributor installed and most phones
+/// have none until somebody installs one. It says so and offers two ways
+/// out, and `with_no_distributor_the_phone_tab_offers_one` holds that it
+/// says them — this is the first time anybody has seen how it says them.
+#[test]
+#[ignore = "needs a renderer; run via scripts/snapshot-test"]
+fn phone_tab_with_no_distributor() {
+    let mut h = harness_reporting(capabilities(), nothing_delivering());
+    h.run();
+    h.run();
+    h.remove_cursor();
+    h.run();
+    h.snapshot("phone_tab_with_no_distributor");
+}
+
 #[test]
 fn the_phone_tab_fits_the_phone() {
     let mut h = harness(capabilities());

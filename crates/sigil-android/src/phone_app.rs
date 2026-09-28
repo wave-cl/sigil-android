@@ -275,13 +275,6 @@ impl App for PhoneApp {
                              opened.",
                         );
                     }
-                    ui.colored_label(
-                        theme.text_secondary,
-                        "A distributor is a separate app, chosen by you, that holds the \
-                         one connection every app on this phone is woken through. sigil \
-                         never sees the push service's account, and the push service \
-                         never sees more than four bytes.",
-                    );
                     // **A way to do it, not only a name to remember.** This
                     // said "Install a UnifiedPush distributor (ntfy, for
                     // one)" and stopped there: the one screen that reports
@@ -289,11 +282,30 @@ impl App for PhoneApp {
                     // link is what the person needs, and a link is a control
                     // now -- `links` was not in this workspace's eframe
                     // features, so every one of them opened nothing.
+                    //
+                    // **And directly under the problem, above the
+                    // explanation.** It was below four lines about what a
+                    // distributor is, which put the only thing to press off
+                    // the bottom of an 804-point screen -- named in the
+                    // accessibility tree, so the test that asks whether it
+                    // is offered passed, and invisible to somebody reading
+                    // the red line above it. The rule this app follows for
+                    // an empty chats list is the one it wanted here: both
+                    // halves every time, the state and what to do about it,
+                    // and the second not below the fold.
                     ui.horizontal_wrapped(|ui| {
                         ui.hyperlink_to("Get ntfy", NTFY);
                         ui.add_space(tokens::SPACING_SM);
                         ui.hyperlink_to("Other distributors", UNIFIEDPUSH);
                     });
+                    ui.add_space(tokens::SPACING_SM);
+                    ui.colored_label(
+                        theme.text_secondary,
+                        "A distributor is a separate app, chosen by you, that holds the \
+                         one connection every app on this phone is woken through. sigil \
+                         never sees the push service's account, and the push service \
+                         never sees more than four bytes.",
+                    );
                     // **Or stay awake.** What a messenger does on a phone
                     // without push: the process kept alive with its
                     // connection open, a quiet notice on the shade saying
