@@ -102,4 +102,12 @@ object Native {
      * was dark on every phone, whatever the phone was.
      */
     external fun theme(dark: Boolean)
+
+    /**
+     * How large the reader asked for text to be, at start and whenever it
+     * changes: `Configuration.fontScale`. Nothing in winit or eframe reads
+     * it, so without this the phone drew one size of type whatever the
+     * system had been set to.
+     */
+    external fun textScale(scale: Float)
 }

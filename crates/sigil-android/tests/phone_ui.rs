@@ -89,7 +89,12 @@ fn harness(capabilities: Vec<Capability>) -> Harness<'static> {
 }
 
 fn harness_reporting(capabilities: Vec<Capability>, report: Shared) -> Harness<'static> {
-    harness_reaching(capabilities, report, Box::new(|_| Ok(()))).0
+    harness_reaching(capabilities, report, Box::new(|_| Ok(())), 1.0).0
+}
+
+/// The same tab, with the reader's text size turned up.
+fn harness_scaled(capabilities: Vec<Capability>, scale: f32) -> Harness<'static> {
+    harness_reaching(capabilities, report(), Box::new(|_| Ok(())), scale).0
 }
 
 /// The same, with the platform's "stay reachable" hook supplied, and the
@@ -98,6 +103,7 @@ fn harness_reaching(
     capabilities: Vec<Capability>,
     report: Shared,
     reach: sigil_android::phone_app::Reach,
+    text_scale: f32,
 ) -> (Harness<'static>, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("a temporary directory");
     let at = dir.path().join("settings.json");
@@ -115,6 +121,7 @@ fn harness_reaching(
             let mut app = app.borrow_mut();
             let ctx = ui.ctx().clone();
             sigil::Form::install(&ctx, sigil::Form::Phone);
+            sigil::TextScale::install(&ctx, text_scale);
             theme::install(&ctx, theme::light(), theme::dark());
             ctx.set_theme(egui::Theme::Dark);
             let t = sigil::ColorTheme::current(&ctx);
@@ -202,6 +209,40 @@ fn the_phone_tab_fits_the_phone() {
     );
 }
 
+#[test]
+fn the_phone_tab_fits_the_phone_when_the_text_is_turned_up() {
+    let mut over: Vec<String> = Vec::new();
+    for scale in [1.3f32, 2.0] {
+        let mut h = harness_scaled(capabilities(), scale);
+        h.run();
+        h.run();
+        // **What the instrument is pointed at.** This passed first time, and
+        // a scale that never reached the style would pass for exactly the
+        // same reason `the_phone_tab_fits_the_phone` does.
+        let body = h.ctx.style_of(egui::Theme::Dark).text_styles[&egui::TextStyle::Body].size;
+        assert!(
+            (body - 15.0 * scale).abs() < 0.01,
+            "the text was not turned up: body is {body} points, not {} -- so \
+             this proves nothing",
+            15.0 * scale
+        );
+        let seen = boxes(&h);
+        assert!(seen.len() > 8, "only {} widgets drew", seen.len());
+        for (name, x0, x1, _) in &seen {
+            if x1 - x0 > 0.0 && (*x1 > PHONE_WIDTH as f64 + 1.0 || *x0 < -1.0) {
+                over.push(format!("at {scale}x: {name:?} at {x0:.0}..{x1:.0}"));
+            }
+        }
+    }
+    assert!(
+        over.is_empty(),
+        "{} widget(s) are drawn outside a {PHONE_WIDTH}-point screen when the \
+         text is turned up:\n  {}",
+        over.len(),
+        over.join("\n  ")
+    );
+}
+
 /// **The key is one line somebody can read out.**
 ///
 /// `sqx-device:<key>` is fifty-five characters of monospace, and on the phone
@@ -212,7 +253,19 @@ fn the_phone_tab_fits_the_phone() {
 /// asks for the key as one widget with nothing cut and nothing joined.
 #[test]
 fn the_phones_key_is_shown_whole_on_one_line() {
-    let mut h = harness(capabilities());
+    for scale in [1.0f32, 1.3, 2.0] {
+        one_line_key(scale);
+    }
+}
+
+/// **Asserted as a line, not as a label.** `labels.contains(&key)` was the
+/// whole of this check, and accesskit reports a wrapped label by its source
+/// string -- so the key split across two lines answered to its own name and
+/// this passed. It did: at 1.3 the key was drawn as `…4A4m5t` and
+/// `gebLHaRSZ9`, and only the probe that looked for a *piece* of the key saw
+/// it. The pieces are what to look for.
+fn one_line_key(scale: f32) {
+    let mut h = harness_scaled(capabilities(), scale);
     h.run();
     h.run();
     let key = sigil::Account::unlocked_for_test([1u8; 32])
@@ -220,7 +273,28 @@ fn the_phones_key_is_shown_whole_on_one_line() {
         .expect("unlocked")
         .me()
         .to_string();
-    let labels: Vec<String> = boxes(&h).into_iter().map(|(n, ..)| n).collect();
+    let seen = boxes(&h);
+    let split: Vec<&String> = seen
+        .iter()
+        .map(|(n, ..)| n)
+        .filter(|n| n.len() < key.len() && !n.is_empty() && key.contains(n.as_str()))
+        .collect();
+    assert!(
+        split.is_empty(),
+        "at {scale}x the key is drawn in pieces, so it broke across lines: \
+         {split:?}"
+    );
+    let width = seen
+        .iter()
+        .find(|(n, ..)| *n == key)
+        .map(|(_, x0, x1, _)| x1 - x0)
+        .unwrap_or_default();
+    assert!(
+        width > 0.0 && width <= PHONE_WIDTH as f64,
+        "at {scale}x the key is {width:.0} points across a {PHONE_WIDTH}-point \
+         screen"
+    );
+    let labels: Vec<String> = seen.into_iter().map(|(n, ..)| n).collect();
     assert!(
         labels.contains(&key),
         "the key is not drawn as one label of its own: {labels:?}"
@@ -421,7 +495,7 @@ fn staying_reachable_is_offered_without_a_distributor_and_told_to_the_platform()
             Ok(())
         })
     };
-    let (mut h, at) = harness_reaching(capabilities(), nothing_delivering(), hook);
+    let (mut h, at) = harness_reaching(capabilities(), nothing_delivering(), hook, 1.0);
     h.run();
     h.run();
     assert!(told.borrow().is_empty(), "nothing chosen, nothing told");

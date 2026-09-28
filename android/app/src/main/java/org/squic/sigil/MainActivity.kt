@@ -30,6 +30,7 @@ class MainActivity : NativeActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         Insets.watch(this)
         tellTheme(resources.configuration)
+        tellTextScale(resources.configuration)
         askForWhatCallsNeed()
         // SIP-45: choose a distributor -- the one already chosen, else the
         // one the platform offers, which includes this app's own embedded
@@ -105,9 +106,25 @@ class MainActivity : NativeActivity() {
         Native.theme(night == Configuration.UI_MODE_NIGHT_YES)
     }
 
+    /**
+     * How large the reader asked for text to be. Android's own slider is
+     * 0.85, 1.0, 1.15 and 1.3; the accessibility one reaches 2.0, which is
+     * what sigil's phone layout is held to.
+     *
+     * `fontScale` is in the manifest's configChanges so a change reaches
+     * here. Without it the framework *recreates* the activity, and this is a
+     * NativeActivity: the process outlives the window, and a recreation is
+     * the same shape as the `finish()` that once left sigil on its splash
+     * screen for good.
+     */
+    private fun tellTextScale(config: Configuration) {
+        Native.textScale(config.fontScale)
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         tellTheme(newConfig)
+        tellTextScale(newConfig)
     }
 
     override fun onDestroy() {

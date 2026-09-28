@@ -31,6 +31,15 @@ impl eframe::App for Sigil {
                 egui::Theme::Light
             });
         }
+        // **How large the reader asked for text to be**, as
+        // `Configuration.fontScale` last said. Nothing in winit or eframe
+        // reads it, so the phone drew one size of type whatever the system
+        // was set to. Installing the theme again is what applies it: the
+        // sizes are written by `theme::install`, which reads the scale.
+        if let Some(scale) = super::platform::take_text_scale() {
+            sigil::TextScale::install(ctx, scale);
+            sigil::theme::install(ctx, sigil::theme::light(), sigil::theme::dark());
+        }
         // **A Back that came in from Kotlin, as the key the shell reads.**
         // Empty on the handset sigil is developed against, where winit takes
         // `KEYCODE_BACK` off the input queue itself; set on a phone whose
@@ -288,6 +297,14 @@ pub fn android_main(app: android_activity::AndroidApp) {
             // gives it the touch scale; and a way for the insets to ask for
             // a repaint when the keyboard comes and goes.
             sigil::Form::install(&cc.egui_ctx, sigil::Form::Phone);
+            // The text size the system was already set to, before the theme
+            // is installed -- `MainActivity.onCreate` says it, which is
+            // before this runs. Taken here so the first frame is drawn at the
+            // right size rather than one frame later; a change after this
+            // lands in `logic`.
+            if let Some(scale) = super::platform::take_text_scale() {
+                sigil::TextScale::install(&cc.egui_ctx, scale);
+            }
             super::platform::repaint_with({
                 let ctx = cc.egui_ctx.clone();
                 move || ctx.request_repaint()

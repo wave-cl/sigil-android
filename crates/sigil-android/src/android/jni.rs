@@ -453,6 +453,18 @@ pub extern "system" fn Java_org_squic_sigil_Native_theme(
     tracing::info!(dark = dark != 0, "the phone's theme");
 }
 
+/// `Native.textScale(scale)`: how large the reader asked for text to be, at
+/// start and on change.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_org_squic_sigil_Native_textScale(
+    _env: JNIEnv,
+    _class: JClass,
+    scale: jni::sys::jfloat,
+) {
+    platform::set_text_scale(scale);
+    tracing::info!(scale, "the phone's text size");
+}
+
 /// `Native.insets(top, bottom, left, right)`: what the system draws over the
 /// surface, in pixels, whenever it changes.
 #[unsafe(no_mangle)]

@@ -669,3 +669,22 @@ pub fn set_theme(dark: bool) {
 pub fn take_theme() -> Option<bool> {
     THEME.lock().ok().and_then(|mut t| t.take())
 }
+
+/// How large the reader asked for text to be, as the system last said,
+/// taken once by the frame that applies it. Nothing in winit or eframe
+/// reads Android's `fontScale`, so the phone drew one size of type whatever
+/// the system was set to.
+static TEXT_SCALE: Mutex<Option<f32>> = Mutex::new(None);
+
+pub fn set_text_scale(scale: f32) {
+    if let Ok(mut s) = TEXT_SCALE.lock() {
+        *s = Some(scale);
+    }
+    if let Some(repaint) = REPAINT.get() {
+        repaint();
+    }
+}
+
+pub fn take_text_scale() -> Option<f32> {
+    TEXT_SCALE.lock().ok().and_then(|mut s| s.take())
+}

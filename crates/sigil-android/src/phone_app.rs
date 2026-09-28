@@ -171,9 +171,45 @@ impl App for PhoneApp {
                             );
                         },
                     );
+                    // **One line at whatever text size the reader asked
+                    // for.** Forty-four monospace characters fit a 360-point
+                    // pane at sigil's own size and nothing larger, so once
+                    // the phone began honouring `Configuration.fontScale`
+                    // the key split in the middle -- `…4A4m5t` on one line
+                    // and `gebLHaRSZ9` on the next, with nothing to say a
+                    // break had happened. That is the fault the scheme was
+                    // made a caption to avoid, returning by another road,
+                    // and the width check cannot see it: a label that wraps
+                    // is not a label that overflows.
+                    //
+                    // Monospace, so the width is linear in the size and one
+                    // measurement gives the size that fits. **Never smaller
+                    // than it was before the setting** -- a reader who asks
+                    // for larger text must not get smaller text than a
+                    // reader who asked for nothing.
+                    let room = ui.available_width();
+                    let wanted = egui::TextStyle::Small.resolve(ui.style()).size;
+                    let measured = ui
+                        .painter()
+                        .layout_no_wrap(
+                            key.to_owned(),
+                            egui::FontId::new(wanted, egui::FontFamily::Monospace),
+                            theme.text_primary,
+                        )
+                        .size()
+                        .x;
+                    let floor = wanted / sigil::TextScale::of(ui.ctx()).factor();
+                    let size = if measured <= room {
+                        wanted
+                    } else {
+                        (wanted * room / measured).max(floor)
+                    };
                     ui.add(
-                        egui::Label::new(egui::RichText::new(key).monospace().small())
-                            .selectable(true),
+                        egui::Label::new(
+                            egui::RichText::new(key)
+                                .font(egui::FontId::new(size, egui::FontFamily::Monospace)),
+                        )
+                        .selectable(true),
                     );
                 }
                 None => {
