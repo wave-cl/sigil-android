@@ -47,4 +47,11 @@ tempfile = "3"
 # Without `wgpu` or `snapshot`: the phone's panes are checked by reading the
 # accessibility tree's geometry, which needs no renderer, and the renderer's
 # dependency tree is most of a build.
-egui_kittest = { version = "0.36", default-features = false }
+# **With a renderer.** It was `default-features = false`, so the Phone tab
+# could be asked the two questions that need no renderer — does anything
+# draw wider than the screen, is everything reachable — and could not be
+# *looked at*. It is the pane this repository exists for and the one sigil's
+# own tests never draw, because a desktop has no Phone tab; both faults ever
+# found on the real handset were in it, and one of them was a filled disc
+# the font does not have, which is a fault only a picture shows.
+egui_kittest = { version = "0.36", features = ["wgpu", "snapshot"] }

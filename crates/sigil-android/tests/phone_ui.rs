@@ -7,9 +7,10 @@
 //! filled disc that the font does not have, drawn against every capability
 //! the phone *had*, and a duplicate Notifications row.
 //!
-//! Two questions, the same two sigil asks of every chat route, and neither
-//! needs a renderer: does anything draw wider than the screen, and is
-//! anything drawn where a finger cannot get to it.
+//! Two questions that need no renderer -- does anything draw wider than the
+//! screen, and is anything drawn where a finger cannot get to it -- and,
+//! since the renderer is on, a picture: the fault that sent me looking for
+//! one was a filled disc the font does not have, which no geometry answers.
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
@@ -183,6 +184,24 @@ fn to_the_end(h: &mut Harness<'static>) {
         // panics when it exceeds its step budget.
         h.run_steps(2);
     }
+}
+
+/// **The pane this repository exists for, drawn.**
+///
+/// `egui_kittest` was pulled in with `default-features = false`, so nothing
+/// here could render: the tab could be measured and not looked at. A desktop
+/// has no Phone tab, so sigil's own snapshots never draw it either — and
+/// both faults ever found on the real handset were in this pane, one of them
+/// a glyph the font does not have, which is a fault only a picture shows.
+#[test]
+#[ignore = "needs a renderer; run via scripts/snapshot-test"]
+fn phone_tab() {
+    let mut h = harness(capabilities());
+    h.run();
+    h.run();
+    h.remove_cursor();
+    h.run();
+    h.snapshot("phone_tab");
 }
 
 #[test]

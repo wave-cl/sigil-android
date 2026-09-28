@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+#
+# Render the snapshot tests deterministically.
+#
+#   scripts/snapshot-test            # verify against the committed PNGs
+#   scripts/snapshot-test --update   # regenerate them
+#
+# Snapshots are #[ignore]d so an ordinary `cargo test` never needs a GPU.
+#
+# Determinism is the whole difficulty. On Linux we force a CPU rasterizer
+# (lavapipe) via the Vulkan loader, which must be told *before the process
+# starts* because it caches ICDs. macOS has no lavapipe, so an `--update` there
+# runs inside a container that does -- otherwise a Mac and CI would generate
+# different pixels for identical code and every snapshot would look like a
+# regression to whoever ran it second.
+set -euo pipefail
+
+# Timezone-dependent renders (a message timestamp) must not differ between a
+# developer's machine and CI's UTC runners.
+export TZ=UTC
+
+repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+update=""
+for arg in "$@"; do
+    case "$arg" in
+        --update) update="1" ;;
+    esac
+done
+
+# Rendered on one machine, verified on another.
+#
+# macOS draws with Metal and CI with lavapipe, and the two do not agree to the
+# last bit on antialiased curves and glyph edges -- a few dozen sub-pixel
+# values, invisible to look at and more than enough to fail an exact compare.
+# That is what `kittest.toml`'s `threshold` is for, and it is set there with
+# the measurements that chose it. Containerising this to match CI's rasterizer
+# was tried and abandoned: the image would have to track CI's distribution as
+# well as its driver, which is a second thing to keep in step for a difference
+# nobody can see.
+if [[ "$(uname -s)" == "Darwin" && -n "$update" ]]; then
+    echo "note: rendering with Metal; CI uses lavapipe. kittest.toml's threshold" >&2
+    echo "      covers the difference -- but if CI disagrees, look at the diff" >&2
+    echo "      before raising it, because a real change hides in the same place." >&2
+fi
+
+if [[ "$(uname -s)" == "Linux" ]]; then
+    # Search rather than assume a filename. The obvious path is
+    # /usr/share/vulkan/icd.d/lvp_icd.<arch>.json, and hardcoding it failed on
+    # a GitHub runner that had lavapipe installed under a different name --
+    # with an error saying to install the package that was already there,
+    # which is the least useful thing a check can say.
+    if [[ -n "${LAVAPIPE_ICD:-}" ]]; then
+        icd="$LAVAPIPE_ICD"
+    else
+        icd="$(ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -1 || true)"
+    fi
+    if [[ -z "$icd" ]]; then
+        echo "error: no lavapipe ICD found." >&2
+        echo "  installed Vulkan ICDs:" >&2
+        ls -1 /usr/share/vulkan/icd.d/ 2>/dev/null | sed 's/^/    /' >&2 \
+            || echo "    (none -- /usr/share/vulkan/icd.d does not exist)" >&2
+        echo "  Debian/Ubuntu: sudo apt install mesa-vulkan-drivers" >&2
+        echo "  Fedora:        sudo dnf install mesa-vulkan-drivers" >&2
+        exit 1
+    fi
+    echo "using software rasterizer: $icd"
+    export VK_ICD_FILENAMES="$icd"
+fi
+
+if [[ -n "$update" ]]; then
+    export UPDATE_SNAPSHOTS=1
+fi
+
+cd "$repo"
+# `--no-fail-fast`, because cargo stops at the first failing test binary and
+# every later one then reports nothing. `chat_ui` failing is why `transcript_ui`
+# was never actually rendered on CI for two commits: the job went red for one
+# snapshot while two others were quietly never checked, which is a green tick's
+# failure mode wearing a red hat.
+cargo test --workspace --no-fail-fast -- --ignored
+
+# Updating writes whatever was drawn and calls it correct, so an unstable
+# snapshot -- one whose content varies per run or per machine -- passes the
+# update and fails the next check. Two of mine did exactly that, and CI found
+# both. So after an update, verify.
+if [[ -n "$update" ]]; then
+    echo
+    echo "verifying the updated snapshots are stable…"
+    # `env -u`, not `UPDATE_SNAPSHOTS=`. Setting it empty leaves it *set*, and
+    # egui_kittest 0.36 refuses an empty value outright -- so this whole verify
+    # step failed with "Unsupported value for UPDATE_SNAPSHOTS" rather than
+    # verifying anything. The check installed to catch unstable snapshots was
+    # itself broken, which is the failure it exists to prevent.
+    env -u UPDATE_SNAPSHOTS cargo test --workspace --no-fail-fast -- --ignored
+    echo
+    echo "stable. If that had failed, the snapshot depends on something that"
+    echo "changes between runs -- a generated key, the machine's capabilities --"
+    echo "and the fix is to render fixed data, not to update it again."
+fi
