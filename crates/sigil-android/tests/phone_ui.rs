@@ -90,12 +90,26 @@ fn harness(capabilities: Vec<Capability>) -> Harness<'static> {
 }
 
 fn harness_reporting(capabilities: Vec<Capability>, report: Shared) -> Harness<'static> {
-    harness_reaching(capabilities, report, Box::new(|_| Ok(())), 1.0).0
+    harness_reaching(
+        capabilities,
+        report,
+        Box::new(|_| Ok(())),
+        1.0,
+        Settings::default(),
+    )
+    .0
 }
 
 /// The same tab, with the reader's text size turned up.
 fn harness_scaled(capabilities: Vec<Capability>, scale: f32) -> Harness<'static> {
-    harness_reaching(capabilities, report(), Box::new(|_| Ok(())), scale).0
+    harness_reaching(
+        capabilities,
+        report(),
+        Box::new(|_| Ok(())),
+        scale,
+        Settings::default(),
+    )
+    .0
 }
 
 /// The same, with the platform's "stay reachable" hook supplied, and the
@@ -105,6 +119,7 @@ fn harness_reaching(
     report: Shared,
     reach: sigil_android::phone_app::Reach,
     text_scale: f32,
+    settings: Settings,
 ) -> (Harness<'static>, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("a temporary directory");
     let at = dir.path().join("settings.json");
@@ -112,8 +127,7 @@ fn harness_reaching(
     // is pressed, and a `TempDir` dropped here would take the directory.
     let keep = Box::leak(Box::new(dir));
     let _ = keep;
-    let app =
-        PhoneApp::new(Settings::default(), at.clone(), capabilities, report).with_reach(reach);
+    let app = PhoneApp::new(settings, at.clone(), capabilities, report).with_reach(reach);
     let app = std::rc::Rc::new(std::cell::RefCell::new(app));
     let mut accounts = Accounts::of(vec![Account::unlocked_for_test([1u8; 32])]);
     let harness = Harness::builder()
@@ -202,6 +216,33 @@ fn phone_tab() {
     h.remove_cursor();
     h.run();
     h.snapshot("phone_tab");
+}
+
+/// **The other branch of the same block**: no distributor, and sigil asked
+/// to stay running instead.
+///
+/// Its first line is a different sentence — the phone is reachable, at a
+/// cost — and the block around it was reordered when the links moved above
+/// the explanation. Reordering a block with two branches and drawing one of
+/// them is how the other quietly stops making sense.
+#[test]
+#[ignore = "needs a renderer; run via scripts/snapshot-test"]
+fn phone_tab_staying_reachable() {
+    let (mut h, _) = harness_reaching(
+        capabilities(),
+        nothing_delivering(),
+        Box::new(|_| Ok(())),
+        1.0,
+        Settings {
+            stay_reachable: true,
+            ..Settings::default()
+        },
+    );
+    h.run();
+    h.run();
+    h.remove_cursor();
+    h.run();
+    h.snapshot("phone_tab_staying_reachable");
 }
 
 /// **The pane before anything can wake the phone**, which is what a new
@@ -530,7 +571,13 @@ fn staying_reachable_is_offered_without_a_distributor_and_told_to_the_platform()
             Ok(())
         })
     };
-    let (mut h, at) = harness_reaching(capabilities(), nothing_delivering(), hook, 1.0);
+    let (mut h, at) = harness_reaching(
+        capabilities(),
+        nothing_delivering(),
+        hook,
+        1.0,
+        Settings::default(),
+    );
     h.run();
     h.run();
     assert!(told.borrow().is_empty(), "nothing chosen, nothing told");
