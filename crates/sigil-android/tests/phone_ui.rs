@@ -96,6 +96,7 @@ fn harness_reporting(capabilities: Vec<Capability>, report: Shared) -> Harness<'
         Box::new(|_| Ok(())),
         1.0,
         Settings::default(),
+        egui::Theme::Dark,
     )
     .0
 }
@@ -108,6 +109,7 @@ fn harness_scaled(capabilities: Vec<Capability>, scale: f32) -> Harness<'static>
         Box::new(|_| Ok(())),
         scale,
         Settings::default(),
+        egui::Theme::Dark,
     )
     .0
 }
@@ -120,6 +122,7 @@ fn harness_reaching(
     reach: sigil_android::phone_app::Reach,
     text_scale: f32,
     settings: Settings,
+    theme_choice: egui::Theme,
 ) -> (Harness<'static>, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("a temporary directory");
     let at = dir.path().join("settings.json");
@@ -138,7 +141,7 @@ fn harness_reaching(
             sigil::Form::install(&ctx, sigil::Form::Phone);
             sigil::TextScale::install(&ctx, text_scale);
             theme::install(&ctx, theme::light(), theme::dark());
-            ctx.set_theme(egui::Theme::Dark);
+            ctx.set_theme(theme_choice);
             let t = sigil::ColorTheme::current(&ctx);
             let mut nav = Navigator::default();
             let mut app_ctx = AppContext {
@@ -218,6 +221,32 @@ fn phone_tab() {
     h.snapshot("phone_tab");
 }
 
+/// **The same pane on a light ground**, which nothing here had ever drawn.
+///
+/// Every snapshot in this file is dark, and sigil learned what that costs on
+/// its own phone renders: the two themes are two sets of colours rather than
+/// one set inverted, so a contrast that works on a dark ground can vanish on
+/// a light one with nothing else changing. It found seven captions that way.
+/// The state drawn here is the one a new phone is in, and its first line is
+/// the destructive colour on whatever ground the phone happens to have.
+#[test]
+#[ignore = "needs a renderer; run via scripts/snapshot-test"]
+fn phone_tab_with_no_distributor_light() {
+    let (mut h, _) = harness_reaching(
+        capabilities(),
+        nothing_delivering(),
+        Box::new(|_| Ok(())),
+        1.0,
+        Settings::default(),
+        egui::Theme::Light,
+    );
+    h.run();
+    h.run();
+    h.remove_cursor();
+    h.run();
+    h.snapshot("phone_tab_with_no_distributor_light");
+}
+
 /// **The other branch of the same block**: no distributor, and sigil asked
 /// to stay running instead.
 ///
@@ -237,6 +266,7 @@ fn phone_tab_staying_reachable() {
             stay_reachable: true,
             ..Settings::default()
         },
+        egui::Theme::Dark,
     );
     h.run();
     h.run();
@@ -577,6 +607,7 @@ fn staying_reachable_is_offered_without_a_distributor_and_told_to_the_platform()
         hook,
         1.0,
         Settings::default(),
+        egui::Theme::Dark,
     );
     h.run();
     h.run();
