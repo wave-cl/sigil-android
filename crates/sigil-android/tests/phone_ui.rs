@@ -124,6 +124,32 @@ fn harness_reaching(
     settings: Settings,
     theme_choice: egui::Theme,
 ) -> (Harness<'static>, std::path::PathBuf) {
+    harness_tall(
+        capabilities,
+        report,
+        reach,
+        text_scale,
+        settings,
+        theme_choice,
+        PHONE_HEIGHT,
+    )
+}
+
+/// The same, at whatever height holds what is being looked at.
+///
+/// **The width is the phone's and the height is not.** 804 points is where
+/// this pane stops on the handset, and a picture taken there shows the key
+/// and the two settings above the fold and nothing below it -- which is
+/// where "What this phone can do" lives, seven rows of it, never drawn.
+fn harness_tall(
+    capabilities: Vec<Capability>,
+    report: Shared,
+    reach: sigil_android::phone_app::Reach,
+    text_scale: f32,
+    settings: Settings,
+    theme_choice: egui::Theme,
+    height: f32,
+) -> (Harness<'static>, std::path::PathBuf) {
     let dir = tempfile::tempdir().expect("a temporary directory");
     let at = dir.path().join("settings.json");
     // Kept for the harness's life: the app writes to it when a radio button
@@ -134,7 +160,7 @@ fn harness_reaching(
     let app = std::rc::Rc::new(std::cell::RefCell::new(app));
     let mut accounts = Accounts::of(vec![Account::unlocked_for_test([1u8; 32])]);
     let harness = Harness::builder()
-        .with_size(egui::vec2(PHONE_WIDTH, PHONE_HEIGHT))
+        .with_size(egui::vec2(PHONE_WIDTH, height))
         .build_ui(move |ui| {
             let mut app = app.borrow_mut();
             let ctx = ui.ctx().clone();
@@ -707,4 +733,35 @@ fn choosing_the_endpoints_span_offers_it_again_to_the_sessions() {
         sigil::wake::take().is_none(),
         "an endpoint was offered with none held"
     );
+}
+
+/// **The whole tab, including what a phone puts under the fold.**
+///
+/// `phone_tab` is taken at a handset's 804 points and stops at "Keep the
+/// endpoint for". Everything after that — "What this phone can do", seven
+/// rows of it, each a capability with what it does and why it is or is not
+/// available here — has never been drawn by anything.
+///
+/// That list is the answer to "why did that not happen", which is what this
+/// pane is for, and it is the half nothing has looked at. Both faults ever
+/// found on the real handset were in this pane, one of them a glyph the font
+/// does not have — a fault only a picture shows, and only of the part the
+/// picture reaches.
+#[test]
+#[ignore = "needs a renderer; run via scripts/snapshot-test"]
+fn phone_tab_whole() {
+    let (mut h, _) = harness_tall(
+        capabilities(),
+        report(),
+        Box::new(|_| Ok(())),
+        1.0,
+        Settings::default(),
+        egui::Theme::Dark,
+        2000.0,
+    );
+    h.run();
+    h.run();
+    h.remove_cursor();
+    h.run();
+    h.snapshot("phone_tab_whole");
 }

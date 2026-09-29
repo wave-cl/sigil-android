@@ -403,7 +403,16 @@ impl App for PhoneApp {
                 // not claim a wake that never happens.
                 let kept_awake =
                     c.name == "Being woken" && !c.support.is_yes() && self.settings.stay_reachable;
-                ui.horizontal(|ui| {
+                // **The mark sits on the name's line.** `horizontal`
+                // centres what it is given against the tallest thing in the
+                // row, and the thing beside the mark is a block of two or
+                // three lines -- so the dot drifted to the middle of the
+                // block and landed beside the *description*, and the column
+                // of dots came out ragged against the column of names it
+                // marks. `horizontal_top` with the mark in a row one line
+                // tall puts it back on the line it is about, whatever the
+                // rows below it are.
+                ui.horizontal_top(|ui| {
                     // **Painted, not written.** These were `●` and `○`, and
                     // `●` is not in egui's bundled font: every capability
                     // this phone actually *has* drew as a tofu box, so the
@@ -413,12 +422,19 @@ impl App for PhoneApp {
                     // before -- and it carries the word, which a shape
                     // cannot.
                     let yes = c.support.is_yes() || kept_awake;
-                    sigil_ui::dot(
-                        ui,
-                        yes,
-                        theme.accent,
-                        theme.text_muted,
-                        if yes { "yes" } else { "no" },
+                    let line = ui.text_style_height(&egui::TextStyle::Body);
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(tokens::SPACING_MD, line),
+                        egui::Layout::left_to_right(egui::Align::Center),
+                        |ui| {
+                            sigil_ui::dot(
+                                ui,
+                                yes,
+                                theme.accent,
+                                theme.text_muted,
+                                if yes { "yes" } else { "no" },
+                            );
+                        },
                     );
                     ui.add_space(tokens::SPACING_XS);
                     ui.vertical(|ui| {
