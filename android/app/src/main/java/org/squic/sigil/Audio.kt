@@ -167,9 +167,23 @@ object Audio {
         } catch (e: Exception) {
             Log.w(TAG, "could not move the call's sound", e)
         }
+        // **Said every time, not only when it went wrong.** This logged
+        // solely on a mismatch, so a route that moved and a route that was
+        // never asked to move left exactly the same trace -- nothing -- and
+        // a report that the speaker did not work could not be answered from
+        // the log at all. `beginCall` and `endCall` both say what they did;
+        // the one line between them that a person actually presses did not.
+        //
+        // Nor can the line `endCall` prints stand in for it: that is read
+        // after `clearCommunicationDevice` and after the mode is put back,
+        // so it reports the phone's default output rather than where the
+        // call was.
         val got = speakerOn(ctx)
-        if (got != on) {
-            Log.i(TAG, "asked for the ${if (on) "loudspeaker" else "earpiece"}; ${state(am)}")
+        val asked = if (on) "loudspeaker" else "earpiece"
+        if (got == on) {
+            Log.i(TAG, "the call's sound moved to the $asked; ${state(am)}")
+        } else {
+            Log.w(TAG, "asked for the $asked and did not get it; ${state(am)}")
         }
         return got
     }
