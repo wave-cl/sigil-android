@@ -160,7 +160,10 @@ pub async fn decline(window: Window, channel: [u8; 32], seq: Option<u64>) -> Out
             break;
         }
         let state = handle.state();
-        if let Some(trouble) = state.trouble.clone() {
+        // The words, not the clock on them: `Outcome` is what a wake
+        // window reports to the platform, and when a failure would have
+        // left the screen means nothing to a window with no screen.
+        if let Some(trouble) = state.trouble.as_ref().map(|t| t.said.clone()) {
             out.trouble = Some(trouble);
             break;
         }
@@ -244,7 +247,10 @@ pub async fn run(window: Window, phone: &dyn Phone) -> Outcome {
             break;
         }
         let state = handle.state();
-        if let Some(trouble) = state.trouble.clone() {
+        // The words, not the clock on them: `Outcome` is what a wake
+        // window reports to the platform, and when a failure would have
+        // left the screen means nothing to a window with no screen.
+        if let Some(trouble) = state.trouble.as_ref().map(|t| t.said.clone()) {
             out.trouble = Some(trouble);
             break;
         }

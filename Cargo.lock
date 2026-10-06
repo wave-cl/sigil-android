@@ -5989,7 +5989,7 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "sigil"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "bs58",
  "dirs",
@@ -6006,7 +6006,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-admin"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "bs58",
  "egui",
@@ -6014,7 +6014,7 @@ dependencies = [
  "sigil",
  "sigil-net",
  "sigil-ui",
- "sqex-proto",
+ "sqex-proto 0.122.0",
  "sqex-voice",
  "sqnr",
  "sqnr-core",
@@ -6047,7 +6047,7 @@ dependencies = [
  "sigil-shell",
  "sigil-ui",
  "sigil-voice",
- "sqex-chat",
+ "sqex-chat 0.116.0",
  "sqnr",
  "sqnr-core",
  "tempfile",
@@ -6058,7 +6058,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-chat"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "bs58",
  "dirs",
@@ -6071,9 +6071,9 @@ dependencies = [
  "sigil-net",
  "sigil-ui",
  "sigil-video",
- "sqex-chat",
- "sqex-discovery",
- "sqex-proto",
+ "sqex-chat 0.122.0",
+ "sqex-discovery 0.122.0",
+ "sqex-proto 0.122.0",
  "sqex-voice",
  "sqnr",
  "sqnr-core",
@@ -6084,18 +6084,18 @@ dependencies = [
 
 [[package]]
 name = "sigil-emoji"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "flate2",
 ]
 
 [[package]]
 name = "sigil-net"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "rand_core 0.6.4",
- "sqex-discovery",
- "sqex-proto",
+ "sqex-discovery 0.122.0",
+ "sqex-proto 0.122.0",
  "sqex-voice",
  "sqnr",
  "sqnr-core",
@@ -6115,8 +6115,8 @@ dependencies = [
  "sigil",
  "sigil-chat",
  "sigil-net",
- "sqex-chat",
- "sqex-proto",
+ "sqex-chat 0.116.0",
+ "sqex-proto 0.116.0",
  "sqexd",
  "sqnr",
  "sqnr-core",
@@ -6131,7 +6131,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-platform"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "auto-launch",
  "block2 0.6.2",
@@ -6154,7 +6154,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-shell"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "dirs",
  "eframe",
@@ -6176,7 +6176,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-ui"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "egui",
  "egui_extras",
@@ -6189,7 +6189,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-update"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "dirs",
  "ed25519-dalek",
@@ -6204,7 +6204,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-video"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "cpal",
  "egui",
@@ -6217,7 +6217,7 @@ dependencies = [
 
 [[package]]
 name = "sigil-voice"
-version = "0.1.47"
+version = "0.1.51"
 dependencies = [
  "egui",
  "sigil",
@@ -6489,8 +6489,38 @@ dependencies = [
  "rusqlite",
  "serde_json",
  "sha2",
- "sqex-discovery",
- "sqex-proto",
+ "sqex-discovery 0.116.0",
+ "sqex-proto 0.116.0",
+ "sqnr",
+ "sqnr-core",
+ "tokio",
+ "tracing-subscriber",
+ "unicode-width 0.2.0",
+ "x25519-dalek",
+]
+
+[[package]]
+name = "sqex-chat"
+version = "0.122.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.122.0#ba43fa591bf7c3e207d5ff11510fc8520cc9bc3d"
+dependencies = [
+ "bs58",
+ "chacha20poly1305",
+ "clap",
+ "crossterm",
+ "dirs",
+ "ed25519-dalek",
+ "futures",
+ "jiff",
+ "libc",
+ "rand_core 0.6.4",
+ "ratatui",
+ "rpassword",
+ "rusqlite",
+ "serde_json",
+ "sha2",
+ "sqex-discovery 0.122.0",
+ "sqex-proto 0.122.0",
  "sqnr",
  "sqnr-core",
  "tokio",
@@ -6503,6 +6533,20 @@ dependencies = [
 name = "sqex-discovery"
 version = "0.116.0"
 source = "git+https://github.com/wave-cl/sqex?tag=v0.116.0#c72a71f9014b53a72e07a9db2881f5126b74a41a"
+dependencies = [
+ "bs58",
+ "dirs",
+ "ed25519-dalek",
+ "hickory-resolver",
+ "sqnr-core",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "sqex-discovery"
+version = "0.122.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.122.0#ba43fa591bf7c3e207d5ff11510fc8520cc9bc3d"
 dependencies = [
  "bs58",
  "dirs",
@@ -6537,9 +6581,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "sqex-proto"
+version = "0.122.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.122.0#ba43fa591bf7c3e207d5ff11510fc8520cc9bc3d"
+dependencies = [
+ "bs58",
+ "bytes",
+ "chacha20poly1305",
+ "ed25519-dalek",
+ "h3",
+ "h3-quinn",
+ "hex",
+ "hmac",
+ "http",
+ "quinn",
+ "rand_core 0.6.4",
+ "sha2",
+ "sqnr-core",
+ "squic",
+ "tokio",
+ "x25519-dalek",
+]
+
+[[package]]
 name = "sqex-voice"
-version = "0.116.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.116.0#c72a71f9014b53a72e07a9db2881f5126b74a41a"
+version = "0.122.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.122.0#ba43fa591bf7c3e207d5ff11510fc8520cc9bc3d"
 dependencies = [
  "bytes",
  "clap",
@@ -6551,8 +6618,8 @@ dependencies = [
  "quinn",
  "rand_core 0.6.4",
  "rpassword",
- "sqex-discovery",
- "sqex-proto",
+ "sqex-discovery 0.122.0",
+ "sqex-proto 0.122.0",
  "sqnr",
  "sqnr-core",
  "tokio",
@@ -6581,8 +6648,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "sqex-discovery",
- "sqex-proto",
+ "sqex-discovery 0.116.0",
+ "sqex-proto 0.116.0",
  "sqnr-core",
  "squic",
  "tokio",
