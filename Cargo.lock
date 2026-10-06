@@ -6014,7 +6014,7 @@ dependencies = [
  "sigil",
  "sigil-net",
  "sigil-ui",
- "sqex-proto 0.122.0",
+ "sqex-proto",
  "sqex-voice",
  "sqnr",
  "sqnr-core",
@@ -6047,7 +6047,7 @@ dependencies = [
  "sigil-shell",
  "sigil-ui",
  "sigil-voice",
- "sqex-chat 0.116.0",
+ "sqex-chat",
  "sqnr",
  "sqnr-core",
  "tempfile",
@@ -6071,9 +6071,9 @@ dependencies = [
  "sigil-net",
  "sigil-ui",
  "sigil-video",
- "sqex-chat 0.122.0",
- "sqex-discovery 0.122.0",
- "sqex-proto 0.122.0",
+ "sqex-chat",
+ "sqex-discovery",
+ "sqex-proto",
  "sqex-voice",
  "sqnr",
  "sqnr-core",
@@ -6094,8 +6094,8 @@ name = "sigil-net"
 version = "0.1.51"
 dependencies = [
  "rand_core 0.6.4",
- "sqex-discovery 0.122.0",
- "sqex-proto 0.122.0",
+ "sqex-discovery",
+ "sqex-proto",
  "sqex-voice",
  "sqnr",
  "sqnr-core",
@@ -6115,8 +6115,8 @@ dependencies = [
  "sigil",
  "sigil-chat",
  "sigil-net",
- "sqex-chat 0.116.0",
- "sqex-proto 0.116.0",
+ "sqex-chat",
+ "sqex-proto",
  "sqexd",
  "sqnr",
  "sqnr-core",
@@ -6471,8 +6471,8 @@ dependencies = [
 
 [[package]]
 name = "sqex-chat"
-version = "0.116.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.116.0#c72a71f9014b53a72e07a9db2881f5126b74a41a"
+version = "0.123.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.123.0#b8867e9c00cae18076a2863541811659c11cc1a6"
 dependencies = [
  "bs58",
  "chacha20poly1305",
@@ -6489,38 +6489,8 @@ dependencies = [
  "rusqlite",
  "serde_json",
  "sha2",
- "sqex-discovery 0.116.0",
- "sqex-proto 0.116.0",
- "sqnr",
- "sqnr-core",
- "tokio",
- "tracing-subscriber",
- "unicode-width 0.2.0",
- "x25519-dalek",
-]
-
-[[package]]
-name = "sqex-chat"
-version = "0.122.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.122.0#ba43fa591bf7c3e207d5ff11510fc8520cc9bc3d"
-dependencies = [
- "bs58",
- "chacha20poly1305",
- "clap",
- "crossterm",
- "dirs",
- "ed25519-dalek",
- "futures",
- "jiff",
- "libc",
- "rand_core 0.6.4",
- "ratatui",
- "rpassword",
- "rusqlite",
- "serde_json",
- "sha2",
- "sqex-discovery 0.122.0",
- "sqex-proto 0.122.0",
+ "sqex-discovery",
+ "sqex-proto",
  "sqnr",
  "sqnr-core",
  "tokio",
@@ -6531,22 +6501,8 @@ dependencies = [
 
 [[package]]
 name = "sqex-discovery"
-version = "0.116.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.116.0#c72a71f9014b53a72e07a9db2881f5126b74a41a"
-dependencies = [
- "bs58",
- "dirs",
- "ed25519-dalek",
- "hickory-resolver",
- "sqnr-core",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "sqex-discovery"
-version = "0.122.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.122.0#ba43fa591bf7c3e207d5ff11510fc8520cc9bc3d"
+version = "0.123.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.123.0#b8867e9c00cae18076a2863541811659c11cc1a6"
 dependencies = [
  "bs58",
  "dirs",
@@ -6559,31 +6515,8 @@ dependencies = [
 
 [[package]]
 name = "sqex-proto"
-version = "0.116.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.116.0#c72a71f9014b53a72e07a9db2881f5126b74a41a"
-dependencies = [
- "bs58",
- "bytes",
- "chacha20poly1305",
- "ed25519-dalek",
- "h3",
- "h3-quinn",
- "hex",
- "hmac",
- "http",
- "quinn",
- "rand_core 0.6.4",
- "sha2",
- "sqnr-core",
- "squic",
- "tokio",
- "x25519-dalek",
-]
-
-[[package]]
-name = "sqex-proto"
-version = "0.122.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.122.0#ba43fa591bf7c3e207d5ff11510fc8520cc9bc3d"
+version = "0.123.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.123.0#b8867e9c00cae18076a2863541811659c11cc1a6"
 dependencies = [
  "bs58",
  "bytes",
@@ -6605,8 +6538,8 @@ dependencies = [
 
 [[package]]
 name = "sqex-voice"
-version = "0.122.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.122.0#ba43fa591bf7c3e207d5ff11510fc8520cc9bc3d"
+version = "0.123.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.123.0#b8867e9c00cae18076a2863541811659c11cc1a6"
 dependencies = [
  "bytes",
  "clap",
@@ -6618,8 +6551,8 @@ dependencies = [
  "quinn",
  "rand_core 0.6.4",
  "rpassword",
- "sqex-discovery 0.122.0",
- "sqex-proto 0.122.0",
+ "sqex-discovery",
+ "sqex-proto",
  "sqnr",
  "sqnr-core",
  "tokio",
@@ -6628,8 +6561,8 @@ dependencies = [
 
 [[package]]
 name = "sqexd"
-version = "0.116.0"
-source = "git+https://github.com/wave-cl/sqex?tag=v0.116.0#c72a71f9014b53a72e07a9db2881f5126b74a41a"
+version = "0.123.0"
+source = "git+https://github.com/wave-cl/sqex?tag=v0.123.0#b8867e9c00cae18076a2863541811659c11cc1a6"
 dependencies = [
  "bs58",
  "bytes",
@@ -6648,8 +6581,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "sqex-discovery 0.116.0",
- "sqex-proto 0.116.0",
+ "sqex-discovery",
+ "sqex-proto",
  "sqnr-core",
  "squic",
  "tokio",
